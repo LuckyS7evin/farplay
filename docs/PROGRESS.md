@@ -4,7 +4,7 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 
 ## État
 - Phase 0 : manuelle (utilisateur) — résultats AFMF / HDR en attente.
-- Phase 1 : implémentée, build CI en cours de validation → tests utilisateur.
+- Phase 1 : build CI vert (run 8, artefact farplay-win64-960422d7) → en attente des tests utilisateur.
 
 ## Décisions
 - 2026-11-21 : base = chiaki-ng 1.9.9 (streetpea/chiaki-ng, branche `main`), remote `upstream`.
@@ -19,6 +19,8 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - Mailbox : option expérimentale (repli FIFO si non supporté, signalé dans l'overlay). FIFO par défaut.
 - Réglages Farplay stockés à part : QSettings("Farplay","Farplay") (overlay/level, present/mailbox).
 - Rouge d'alerte choisi : #E5484D.
+
+- CI : premier build complet ~60 min (vcpkg sans cache) ; caches restore/save séparés pour les suivants. PR dependabot #1 (actions/cache v6) en échec, non traitée.
 
 ## Fichiers Farplay
 - `gui/src/farplay/farplay.cmake` : sources, qrc, FARPLAY_GIT_HASH, OUTPUT_NAME.
