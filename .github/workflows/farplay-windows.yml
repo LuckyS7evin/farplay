@@ -33,6 +33,9 @@ jobs:
       # The deps cache below is keyed on ffmpeg_asset only, bump cache_rev to force a refresh.
       ffmpeg_asset: ffmpeg-n9.0-latest-win64-gpl-shared-9.0
       cache_rev: "1"
+      # CMake 4 du runner refuse les vieux ports vcpkg (json-c : cmake_minimum_required < 3.5).
+      CMAKE_POLICY_VERSION_MINIMUM: "3.5"
+      VCPKG_KEEP_ENV_VARS: CMAKE_POLICY_VERSION_MINIMUM
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg-bincache
 
     defaults:
