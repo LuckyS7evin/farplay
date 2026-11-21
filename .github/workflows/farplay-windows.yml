@@ -73,9 +73,16 @@ jobs:
       - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
+      # aqtinstall échoue avec le Python par défaut du runner (3.15) : on épingle 3.12.
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Setup Qt
         uses: jurplel/install-qt-action@v4
         with:
+          cache: true
           version: "6.12.*"
           host: 'windows'
           target: 'desktop'
