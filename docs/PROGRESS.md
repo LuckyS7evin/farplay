@@ -12,7 +12,7 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - Build Windows : partir du workflow MSVC/vcpkg upstream (`build-windows-x86.yml`) plutôt que MSYS2.
 
 - Fork : `git merge --allow-unrelated-histories upstream/main` (le commit docs initial reste la racine ; les fusions upstream futures marchent normalement).
-- Workflows upstream supprimés sauf `farplay-windows.yml` (+ dependabot). Vulkan SDK épinglé 1.4.363.1, SPIRV-Cross `vulkan-sdk-1.4.363.0`. Restent flottants : FFmpeg (`streetpea/FFmpeg-Builds` latest) et shaderc → bumper `cache_rev` si besoin.
+- Workflows upstream supprimés sauf `farplay-windows.yml` (+ dependabot). Vulkan SDK épinglé 1.4.363.1, SPIRV-Cross `vulkan-sdk-1.4.363.0`. Qt épinglé 6.10.3 (aqtinstall ne gère pas le dépôt Qt 6.11+). shaderc pris dans le Vulkan SDK (.pc généré). Reste flottant : FFmpeg (`streetpea/FFmpeg-Builds` latest) → bumper `cache_rev` si besoin.
 - Exe Windows renommé `farplay.exe` (OUTPUT_NAME) ; nom d'app Qt / dossier de réglages inchangés (« Chiaki ») pour garder les profils existants. Titre = « Farplay <hash> ».
 - Temps GPU : via `pl_render_params.info_callback` (libplacebo mesure chaque passe par timestamps Vulkan, lecture asynchrone). Étapes : FRAME (traitement image source), BLEND (composition par image affichée). Décodage GPU non mesuré (FFmpeg possède la file Vulkan Video) → phase 2.
 - Overlay en QML (pas le widget natif upstream, fenêtre tooltip au-dessus du plein écran = risque pour flip/AFMF). Snapshot à 2 Hz : chaque changement QML déclenche un rendu Qt Quick → mesurer la latence overlay masqué (CSV seul).

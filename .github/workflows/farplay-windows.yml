@@ -131,16 +131,26 @@ jobs:
           cmake --build build --config Release
           cmake --install build
 
-      # NOTE: shaderc comes from Google's floating "latest" badge; not pinnable without a known-good URL.
+      # shaderc vient du Vulkan SDK (version épinglée) : l'ancien lien « badge » de Google n'existe plus.
       - name: Setup shaderc
         if: steps.deps-cache.outputs.cache-hit != 'true'
         run: |
-          $ProgressPreference = 'SilentlyContinue'
-          $url = ((Invoke-WebRequest -UseBasicParsing -Uri "https://storage.googleapis.com/shaderc/badges/build_link_windows_vs2019_release.html").Content | Select-String -Pattern 'url=(.*)"').Matches.Groups[1].Value
-          Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile .\shaderc.zip
-          Expand-Archive -LiteralPath "shaderc.zip" -DestinationPath "."
-          cp "./install/*" "./${{ env.dep_folder }}" -Force -Recurse
-          rm "./install" -r -force
+          $sdk = "${{ env.VULKAN_SDK }}".TrimEnd('\').Replace('\', '/')
+          $dep = "${{ github.workspace }}\${{ env.dep_folder }}"
+          New-Item -ItemType Directory -Force -Path "$dep\bin", "$dep\lib\pkgconfig" | Out-Null
+          cp "${{ env.VULKAN_SDK }}Bin\shaderc_shared.dll" "$dep\bin" -Force
+          @(
+            "prefix=$sdk",
+            'includedir=${prefix}/Include',
+            'libdir=${prefix}/Lib',
+            '',
+            'Name: shaderc',
+            'Description: shaderc (Vulkan SDK ${{ env.vulkan_sdk_version }})',
+            'Version: 2025.1',
+            'Libs: -L${libdir} -lshaderc_shared',
+            'Cflags: -I${includedir}'
+          ) | Set-Content -Encoding ascii "$dep\lib\pkgconfig\shaderc.pc"
+          Get-Content "$dep\lib\pkgconfig\shaderc.pc"
 
       - name: Make build directory
         run: |
