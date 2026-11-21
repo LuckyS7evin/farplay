@@ -4,6 +4,7 @@
 #include "chiaki/log.h"
 #include "chiaki/time.h"
 #include "streamsession.h"
+#include "farplay/farplaystats.h" // FARPLAY:
 
 #include <qpa/qplatformnativeinterface.h>
 
@@ -701,6 +702,7 @@ static void logTimerFireInterval(qint64 now_us)
 
 static void logSwapInterval(qint64 now_us)
 {
+    farplay::Stats::instance().onDisplayFrame(now_us); // FARPLAY: compteur d'images affichées
     if (!chiakiGui().isDebugEnabled())
         return;
     static qint64 last_swap_us = 0;
@@ -3006,6 +3008,7 @@ bool QmlMainWindow::configuredFrameMixerEnabledForScheduling() const
 void QmlMainWindow::presentFrame(ChiakiFfmpegFrame frame, int32_t frames_lost, qint64 decoder_delivery_us)
 {
     const qint64 present_entry_us = static_cast<qint64>(chiaki_time_now_monotonic_us());
+    farplay::Stats::instance().onSourceFrame(frame.frame); // FARPLAY: image source reçue
     if (decoder_delivery_us > 0 && present_entry_us >= decoder_delivery_us) {
         const qint64 gui_handoff_us = present_entry_us - decoder_delivery_us;
         if (gui_handoff_us >= 12000) {
@@ -6024,14 +6027,17 @@ void QmlMainWindow::createSwapchain()
     struct pl_vulkan_swapchain_params swapchain_params = {
         .surface = surface,
         // Prefer MAILBOX for vsync (lower) latency when supported).
-        .present_mode = settings->GetVSyncEnabled() ? VK_PRESENT_MODE_FIFO_KHR
-                                                    : VK_PRESENT_MODE_IMMEDIATE_KHR,
+        // FARPLAY: mailbox optionnel (VSync sans file d'attente)
+        .present_mode = settings->GetVSyncEnabled()
+            ? (farplay::Stats::instance().mailbox() ? VK_PRESENT_MODE_MAILBOX_KHR : VK_PRESENT_MODE_FIFO_KHR)
+            : VK_PRESENT_MODE_IMMEDIATE_KHR,
         .swapchain_depth = swapchain_depth,
     };
     placebo_swapchain = pl_vulkan_create_swapchain(placebo_vulkan, &swapchain_params);
     present_vsync_enabled = swapchain_params.present_mode != VK_PRESENT_MODE_IMMEDIATE_KHR;
-    if (!placebo_swapchain && !settings->GetVSyncEnabled()) {
-        qCWarning(chiakiGui) << "Immediate present mode unsupported, falling back to FIFO VSync";
+    const int farplay_requested_mode = swapchain_params.present_mode; // FARPLAY:
+    if (!placebo_swapchain && swapchain_params.present_mode != VK_PRESENT_MODE_FIFO_KHR) { // FARPLAY: + repli mailbox
+        qCWarning(chiakiGui) << "Requested present mode unsupported, falling back to FIFO VSync";
         swapchain_params.present_mode = VK_PRESENT_MODE_FIFO_KHR;
         swapchain_params.swapchain_depth = 1;
         placebo_swapchain = pl_vulkan_create_swapchain(placebo_vulkan, &swapchain_params);
@@ -6048,6 +6054,8 @@ void QmlMainWindow::createSwapchain()
         << " swapchain_depth=" << swapchain_depth
         << " present_vsync_enabled=" << (present_vsync_enabled ? 1 : 0)
         << " created=" << (placebo_swapchain ? 1 : 0);
+    farplay::Stats::instance().setPresentMode(swapchain_params.present_mode, // FARPLAY:
+                                              swapchain_params.present_mode == farplay_requested_mode);
     if (!placebo_swapchain) {
         vk_funcs.vkDestroySurfaceKHR(placebo_vk_inst->instance, surface, nullptr);
         surface = VK_NULL_HANDLE;
@@ -6734,6 +6742,9 @@ void QmlMainWindow::render()
 
     struct pl_render_params params = *render_params;
     params.frame_mixer = effectiveFrameMixerConfig(&params);
+    // FARPLAY: temps GPU par passe (timestamps Vulkan de libplacebo)
+    params.info_callback = &farplay::Stats::plInfoCallback;
+    params.info_priv = &farplay::Stats::instance();
     const bool content_timed = params.frame_mixer == nullptr;
     const bool mixer_active = params.frame_mixer != nullptr;
     const bool has_settings = settings != nullptr;
@@ -7651,6 +7662,9 @@ bool QmlMainWindow::handleShortcut(QKeyEvent *event)
 {
     if (event->modifiers() == Qt::NoModifier) {
         switch (event->key()) {
+        case Qt::Key_F3: // FARPLAY: niveau de l'overlay de stats
+            farplay::Stats::instance().cycleOverlayLevel();
+            return true;
         case Qt::Key_F11:
             if (windowState() != Qt::WindowFullScreen)
                 fullscreenTime();

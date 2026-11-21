@@ -4,12 +4,27 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 
 ## État
 - Phase 0 : manuelle (utilisateur) — résultats AFMF / HDR en attente.
-- Phase 1 : plan proposé, en attente de validation.
+- Phase 1 : implémentée, build CI en cours de validation → tests utilisateur.
 
 ## Décisions
 - 2026-11-21 : base = chiaki-ng 1.9.9 (streetpea/chiaki-ng, branche `main`), remote `upstream`.
 - Dépôt `farplay` vide au départ : la branche de travail sera construite sur l'historique upstream (pas de racine indépendante) pour garder des fusions simples.
 - Build Windows : partir du workflow MSVC/vcpkg upstream (`build-windows-x86.yml`) plutôt que MSYS2.
+
+- Fork : `git merge --allow-unrelated-histories upstream/main` (le commit docs initial reste la racine ; les fusions upstream futures marchent normalement).
+- Workflows upstream supprimés sauf `farplay-windows.yml` (+ dependabot). Vulkan SDK épinglé 1.4.363.1, SPIRV-Cross `vulkan-sdk-1.4.363.0`. Restent flottants : FFmpeg (`streetpea/FFmpeg-Builds` latest) et shaderc → bumper `cache_rev` si besoin.
+- Exe Windows renommé `farplay.exe` (OUTPUT_NAME) ; nom d'app Qt / dossier de réglages inchangés (« Chiaki ») pour garder les profils existants. Titre = « Farplay <hash> ».
+- Temps GPU : via `pl_render_params.info_callback` (libplacebo mesure chaque passe par timestamps Vulkan, lecture asynchrone). Étapes : FRAME (traitement image source), BLEND (composition par image affichée). Décodage GPU non mesuré (FFmpeg possède la file Vulkan Video) → phase 2.
+- Overlay en QML (pas le widget natif upstream, fenêtre tooltip au-dessus du plein écran = risque pour flip/AFMF). Snapshot à 2 Hz : chaque changement QML déclenche un rendu Qt Quick → mesurer la latence overlay masqué (CSV seul).
+- Mailbox : option expérimentale (repli FIFO si non supporté, signalé dans l'overlay). FIFO par défaut.
+- Réglages Farplay stockés à part : QSettings("Farplay","Farplay") (overlay/level, present/mailbox).
+- Rouge d'alerte choisi : #E5484D.
+
+## Fichiers Farplay
+- `gui/src/farplay/farplay.cmake` : sources, qrc, FARPLAY_GIT_HASH, OUTPUT_NAME.
+- `gui/{include,src}/farplay/farplaystats.*` : `farplay::Stats` (singleton QML `Farplay`, compteurs, timings GPU, CSV `Documents/Farplay/stats-*.csv`).
+- `gui/src/qml/farplay/StatsOverlay.qml` (+ `gui/res/farplay/farplay.qrc`, police JetBrains Mono OFL).
+- Points d'appel upstream (marqués `FARPLAY:`) : qmlmainwindow.cpp (presentFrame, logSwapInterval, info_callback, present mode, F3), qmlbackend.cpp (registerQml), streamsession.h (GetRttUs), main.cpp (titre), StreamView.qml (Loader + bouton Stats), SettingsDialog.qml (Mailbox, CSV), gui/CMakeLists.txt (include).
 
 ## Cartographie chiaki-ng (chemins relatifs à la racine upstream)
 **Décodage**
@@ -40,4 +55,6 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - Vulkan Video : aucun `get_format`/D3D11VA dans le code ; confirmer que le hwdec « vulkan » de FFmpeg est bien utilisé et zero-copy via `pl_map_avframe_ex`.
 
 ## Reste à faire
-- Validation du plan de phase 1.
+- Phase 1 : build CI vert, retours de test utilisateur (CSV, capture overlay, latence vs chiaki-ng).
+- Phase 2 : timestamps décodage Vulkan Video, FSR 1, diagnostic HDR, tone mapping SDR.
+- Raccourci manette dédié pour l'overlay (aujourd'hui : bouton dans le menu de flux).

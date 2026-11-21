@@ -544,8 +544,22 @@ Item {
                 checked: Chiaki.session && !Chiaki.session.muted
                 onToggled: Chiaki.session.muted = !Chiaki.session.muted
                 KeyNavigation.left: volumeSlider
-                KeyNavigation.right: zoomButton
+                KeyNavigation.right: farplayStatsButton // FARPLAY:
                 Keys.onReturnPressed: toggled()
+                Keys.onEscapePressed: menuController.close()
+            }
+
+            // FARPLAY: niveau de l'overlay Farplay (masqué / compact / détaillé)
+            ToolButton {
+                id: farplayStatsButton
+                text: [qsTr("Stats : non"), qsTr("Stats : compact"), qsTr("Stats : détail")][Farplay.overlayLevel]
+                padding: 10
+                checkable: true
+                checked: Farplay.overlayLevel > 0
+                onClicked: Farplay.cycleOverlayLevel()
+                KeyNavigation.left: muteButton
+                KeyNavigation.right: zoomButton
+                Keys.onReturnPressed: clicked()
                 Keys.onEscapePressed: menuController.close()
             }
 
@@ -556,7 +570,7 @@ Item {
                 checkable: true
                 checked: Chiaki.window.videoMode == ChiakiWindow.VideoMode.Zoom
                 onToggled: Chiaki.window.videoMode = Chiaki.window.videoMode == ChiakiWindow.VideoMode.Zoom ? ChiakiWindow.VideoMode.Normal : ChiakiWindow.VideoMode.Zoom
-                KeyNavigation.left: muteButton
+                KeyNavigation.left: farplayStatsButton // FARPLAY:
                 KeyNavigation.right: {
                     if(Chiaki.window.videoMode == ChiakiWindow.VideoMode.Zoom)
                         zoomFactor
@@ -1293,6 +1307,13 @@ Item {
             if (!Chiaki.session)
                 menuController.close();
         }
+    }
+    // FARPLAY: overlay de stats (F3 ou bouton "Stats" du menu de flux)
+    Loader {
+        anchors { left: parent.left; top: parent.top; margins: 16 }
+        z: 100
+        active: Farplay.overlayLevel > 0 && !!Chiaki.session && !sessionLoading && !sessionError
+        source: "qrc:/farplay/StatsOverlay.qml"
     }
     Connections {
         target: Chiaki.session

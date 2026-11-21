@@ -1,4 +1,5 @@
 #include "qmlbackend.h"
+#include "farplay/farplaystats.h" // FARPLAY:
 #include "qmlsettings.h"
 #include "qmlmainwindow.h"
 #include "streamsession.h"
@@ -295,6 +296,7 @@ QmlBackend::QmlBackend(Settings *settings, QmlMainWindow *window)
     qmlRegisterUncreatableType<QmlMainWindow>(uri, 1, 0, "ChiakiWindow", {});
     qmlRegisterUncreatableType<QmlSettings>(uri, 1, 0, "ChiakiSettings", {});
     qmlRegisterUncreatableType<StreamSession>(uri, 1, 0, "ChiakiSession", {});
+    farplay::Stats::registerQml(this, window); // FARPLAY: singleton QML "Farplay"
 
     QObject *frame_obj = new QObject();
     frame_thread = new QThread(frame_obj);

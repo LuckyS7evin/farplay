@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/farplay">
+    <file>fonts/JetBrainsMono-Regular.ttf</file>
+    <file alias="StatsOverlay.qml">../../src/qml/farplay/StatsOverlay.qml</file>
+  </qresource>
+</RCC>

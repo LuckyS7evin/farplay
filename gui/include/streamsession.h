@@ -352,6 +352,7 @@ class StreamSession : public QObject
 		double GetAveragePacketLoss()	{ return average_packet_loss; }
 		quint64 DecoderFlushGeneration() const { return decoder_flush_generation.loadRelaxed(); }
 		int GetFramesLost()		{ return frames_lost; }
+		quint64 GetRttUs() const	{ return session.rtt_us; } // FARPLAY:
 		bool GetMuted()	{ return muted; }
 		void SetMuted(bool enable)	{ if (enable != muted) ToggleMute(); }
 		void SetAudioVolume(int volume) { audio_volume = volume; }

@@ -1,0 +1,13 @@
+Farplay — client Remote Play PS5 pour Windows
+Copyright (C) 2026 les contributeurs de Farplay
+
+Farplay est un fork de chiaki-ng (https://github.com/streetpea/chiaki-ng),
+lui-même dérivé de Chiaki (thestr4ng3r). Il est distribué sous la même licence,
+GNU Affero General Public License v3.0 (voir COPYING et LICENSES/).
+
+Composants tiers ajoutés par Farplay :
+- JetBrains Mono (gui/res/farplay/fonts) — SIL Open Font License 1.1,
+  voir gui/res/farplay/fonts/OFL-JetBrainsMono.txt.
+
+Les composants tiers hérités de chiaki-ng gardent leurs licences d'origine
+(voir LICENSES/ et third-party/).

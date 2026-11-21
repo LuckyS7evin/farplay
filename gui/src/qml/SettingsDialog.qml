@@ -924,6 +924,42 @@ DialogView {
                         text: qsTr("(Unchecked)")
                     }
 
+                    // FARPLAY: options de présentation et de mesure
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Mailbox (Farplay):")
+                    }
+
+                    C.CheckBox {
+                        enabled: Chiaki.settings.vSyncEnabled
+                        checked: Farplay.mailbox
+                        onClicked: {
+                            Farplay.mailbox = checked
+                            if (Chiaki.window.runtimeRendererBackend === 1 && Chiaki.settings.restartApplication())
+                                Qt.quit()
+                        }
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("VSync sans file d'attente, latence plus basse (expérimental)")
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Journal de stats CSV:")
+                    }
+
+                    C.CheckBox {
+                        checked: Farplay.csvLogging
+                        onToggled: Farplay.csvLogging = checked
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Une ligne par seconde dans Documents/Farplay")
+                    }
+
                     Label {
                         Layout.alignment: Qt.AlignRight
                         text: qsTr("Render Preset:")
