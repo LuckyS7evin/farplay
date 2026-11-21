@@ -98,7 +98,7 @@ jobs:
 
       - name: Cache FFmpeg/SDL2/SPIRV-Cross/shaderc/libplacebo deps
         id: deps-cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ${{ env.dep_folder }}
           key: deps-win64-${{ env.cache_rev }}-${{ env.ffmpeg_asset }}-sdl2c${{ env.sdl2_compat_tag }}-spirv${{ env.spirv_cross_ref }}-vk${{ env.vulkan_sdk_version }}-plbo${{ env.libplacebo_tag }}-vcpkg${{ env.vcpkg_baseline }}
@@ -160,8 +160,10 @@ jobs:
         run: |
           mkdir build
 
+      # restore/save séparés : le cache est sauvé dès qu'il est produit, même si la suite échoue.
       - name: Cache vcpkg binary archives
-        uses: actions/cache@v4
+        id: vcpkg-cache
+        uses: actions/cache/restore@v4
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: vcpkg-bin-${{ env.triplet }}-${{ env.vcpkg_baseline }}-${{ hashFiles('vcpkg.json') }}
@@ -179,6 +181,13 @@ jobs:
           vcpkgJsonGlob: "vcpkg.json"
         env:
           VCPKG_BINARY_SOURCES: "clear;files,${{ env.VCPKG_DEFAULT_BINARY_CACHE }},readwrite"
+
+      - name: Save vcpkg binary archives
+        if: always() && steps.vcpkg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-bin-${{ env.triplet }}-${{ env.vcpkg_baseline }}-${{ hashFiles('vcpkg.json') }}
 
       - name: Build libplacebo
         if: steps.deps-cache.outputs.cache-hit != 'true'
@@ -199,6 +208,13 @@ jobs:
           ./build
           ninja -C./build
           ninja -C./build install
+
+      - name: Save deps cache
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ env.dep_folder }}
+          key: deps-win64-${{ env.cache_rev }}-${{ env.ffmpeg_asset }}-sdl2c${{ env.sdl2_compat_tag }}-spirv${{ env.spirv_cross_ref }}-vk${{ env.vulkan_sdk_version }}-plbo${{ env.libplacebo_tag }}-vcpkg${{ env.vcpkg_baseline }}
 
       - name: Apply Patches
         run: |
@@ -230,17 +246,9 @@ jobs:
           cp build\gui\farplay.exe Farplay-Win
           cp build\third-party\cpp-steam-tools\cpp-steam-tools.dll Farplay-Win
           cp scripts\qtwebengine_import.qml gui\src\qml\
-          cp "${env:VCPKG_INSTALLED_DIR}\${{ env.triplet }}\bin\libcrypto-*-x64.dll" Farplay-Win
-          cp "${env:VCPKG_INSTALLED_DIR}\${{ env.triplet }}\bin\libssl-*-x64.dll" Farplay-Win
-          cp "${{ github.workspace }}\${{ env.dep_folder }}\bin\SDL2.dll" Farplay-Win
-          cp "${{ github.workspace }}\${{ env.dep_folder }}\bin\SDL3.dll" Farplay-Win
-          cp "${env:VCPKG_INSTALLED_DIR}\${{ env.triplet }}\bin\hidapi.dll" Farplay-Win
-          cp "${env:VCPKG_INSTALLED_DIR}\${{ env.triplet }}\bin\fftw3.dll" Farplay-Win
-          cp "${env:VCPKG_INSTALLED_DIR}\${{ env.triplet }}\bin\opus.dll" Farplay-Win
-          cp "${env:VCPKG_INSTALLED_DIR}\${{ env.triplet }}\bin\libspeexdsp.dll" Farplay-Win
-          cp "${env:VCPKG_INSTALLED_DIR}\${{ env.triplet }}\bin\lcms2.dll" Farplay-Win
-          cp "${env:VCPKG_INSTALLED_DIR}\${{ env.triplet }}\bin\miniupnpc.dll" Farplay-Win
-          cp "${env:VCPKG_INSTALLED_DIR}\${{ env.triplet }}\bin\json-c.dll" Farplay-Win
+          # Toutes les DLL vcpkg (la liste upstream citait hidapi/fftw3, absents du manifeste).
+          cp "${env:VCPKG_INSTALLED_DIR}\${{ env.triplet }}\bin\*.dll" Farplay-Win
+          foreach ($sdl in "SDL2.dll", "SDL3.dll") { $p = "${{ github.workspace }}\${{ env.dep_folder }}\bin\$sdl"; if (Test-Path $p) { cp $p Farplay-Win } }
           cp "${{ github.workspace }}\${{ env.dep_folder }}\bin\swresample-*.dll" Farplay-Win
           cp "${{ github.workspace }}\${{ env.dep_folder }}\bin\avcodec-*.dll" Farplay-Win
           cp "${{ github.workspace }}\${{ env.dep_folder }}\bin\avutil-*.dll" Farplay-Win
