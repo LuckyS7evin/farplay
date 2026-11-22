@@ -37,21 +37,25 @@ FocusScope {
         }
         FpCard {
             Layout.fillWidth: true
-            implicitHeight: rowsCol.implicitHeight + Theme.unit * 5 + causeText.implicitHeight
+            implicitHeight: inner.implicitHeight + padding * 2
             ColumnLayout {
-                id: rowsCol
+                id: inner
                 width: parent.width
-                spacing: 6
-            }
-            Text {
-                id: causeText
-                anchors.bottom: parent.bottom
-                width: parent.width
-                wrapMode: Text.WordWrap
-                text: "Cause probable : " + (g.cause !== "" ? g.cause : "RAS")
-                font.family: Theme.ui
-                font.pixelSize: Theme.small
-                color: g.cause !== "" ? Theme.alert : Theme.mint
+                spacing: Theme.unit
+                ColumnLayout {
+                    id: rowsCol
+                    Layout.fillWidth: true
+                    spacing: 6
+                }
+                Text {
+                    Layout.fillWidth: true
+                    Layout.topMargin: Theme.unit
+                    wrapMode: Text.WordWrap
+                    text: "Cause probable : " + (g.cause !== "" ? g.cause : "RAS")
+                    font.family: Theme.ui
+                    font.pixelSize: Theme.small
+                    color: g.cause !== "" ? Theme.alert : Theme.mint
+                }
             }
         }
     }
@@ -138,7 +142,7 @@ FocusScope {
             Group {
                 title: "Réseau"
                 cause: page.netCause
-                Line { label: "Latence réseau (RTT)"; value: page.num(page.s.rttMs, 0, "ms") }
+                Line { label: "Latence réseau (RTT)"; value: page.num(page.s.rttMs, 1, "ms") }
                 Line { label: "Débit"; value: page.num(page.s.bitrate, 1, "Mbps") }
                 Line { label: "Débit cible"; value: page.num(page.s.targetBitrate, 1, "Mbps") }
                 Line { label: "Pertes de paquets"; value: page.num(page.s.packetLoss, 2, "%"); tone: page.s.packetLoss > 1 ? Theme.alert : Theme.ivory }

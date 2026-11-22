@@ -11,11 +11,11 @@ on:
 permissions:
   contents: read
 
-# Un seul build par branche : un nouveau push annule le précédent (sinon deux jobs
+# Un seul build par branche à la fois : un nouveau push attend la fin du précédent (sinon deux jobs
 # se disputent la création du cache vcpkg et aucun ne le sauve).
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-win_x64:

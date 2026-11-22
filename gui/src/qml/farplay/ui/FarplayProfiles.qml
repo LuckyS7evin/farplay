@@ -81,6 +81,9 @@ QtObject {
             list = defaults.slice()
         profiles = list
         current = store.current
+        // Premier lancement : le profil GTA 6 est présenté comme actif (sans rien modifier)
+        if (find(current) === null && profiles.length > 0)
+            current = profiles[0].name
         if (store.json === "") persist()
     }
 }
