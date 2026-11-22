@@ -52,7 +52,7 @@ FarplayDialogCard {
                 id: pinInput
                 anchors.fill: parent
                 opacity: 0
-                maxLength: 4
+                maximumLength: 4
                 inputMethodHints: Qt.ImhDigitsOnly
                 validator: RegularExpressionValidator { regularExpression: /[0-9]{4}/ }
                 Keys.onReturnPressed: if (acceptableInput) root.pinEntered(text)

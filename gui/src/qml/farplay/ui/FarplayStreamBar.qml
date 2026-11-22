@@ -4,8 +4,10 @@
 import QtQuick
 import org.streetpea.chiaking
 
-FpGlass {
+Item {
     id: root
+    // The root is a plain Item so that a Loader can size it to the full width without
+    // stretching the floating pill (Loader resizes its item when it has an explicit size).
     property bool shown: false
     property bool muted: false
     signal quickSettingsRequested()
@@ -26,12 +28,18 @@ FpGlass {
         ? "PS5 · %1 → %2 fps · %3".arg(fpsIn.toFixed(0)).arg(fpsShown.toFixed(0)).arg(hdrLabel)
         : "PS5 · —"
 
+    visible: pill.y > -pill.height
+    implicitWidth: 400
+    implicitHeight: 96
+
+  FpGlass {
+    id: pill
     height: 56
     radius: height / 2
     fillAlpha: 0.78
     width: row.implicitWidth + 28
-    x: parent ? Math.round((parent.width - width) / 2) : 0
-    y: shown ? 16 : -height - 24
+    x: Math.round((root.width - width) / 2)
+    y: root.shown ? 16 : -height - 24
     visible: y > -height
     z: 100
     Behavior on y { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
@@ -205,3 +213,4 @@ FpGlass {
         }
     }
 }
+  }

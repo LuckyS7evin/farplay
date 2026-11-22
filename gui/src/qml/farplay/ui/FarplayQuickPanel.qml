@@ -57,6 +57,7 @@ FpGlass {
 
         RowLayout {
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
             Layout.preferredHeight: 44
             spacing: 14
             FpLogo { size: 30 }
@@ -71,7 +72,7 @@ FpGlass {
             // Lecture en direct
             Row {
                 spacing: 26
-                visible: panel.width >= 600
+                visible: panel.cols === 2
                 Layout.alignment: Qt.AlignVCenter
                 Row {
                     spacing: 7
@@ -279,6 +280,7 @@ FpGlass {
 
         RowLayout {
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
             Layout.topMargin: 2
             spacing: 14
             FpButton {
@@ -300,7 +302,7 @@ FpGlass {
             }
             Item { Layout.fillWidth: true }
             FpHints {
-                visible: panel.width >= 600
+                visible: panel.cols === 2
                 model: [["✕", "Modifier"], ["○", "Fermer"]]
             }
         }

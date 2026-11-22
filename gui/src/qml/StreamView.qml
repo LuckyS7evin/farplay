@@ -29,6 +29,7 @@ Item {
     property int separateDialogY: 0
     property bool sessionStopDialogActive: false
     property bool sessionPinDialogActive: false
+    property bool farplayQuickOpen: false // FARPLAY: n'est plus utilisé (reste pour l'ancien contenu du menu chiaki, jamais chargé)
 
     function grabInput(item) {
         Chiaki.window.grabInput();
@@ -910,12 +911,8 @@ Item {
         }
         height: streamMenuHeight
         y: menuController.open ? parent.height - height : parent.height
-        visible: !useSeparateMenuWindow && (menuController.open || menuController.closing)
-        enabled: !useSeparateMenuWindow && menuController.open
-        onVisibleChanged: {
-            if (visible)
-                view.grabInput(inlineMenuContent.item ? inlineMenuContent.item.initialFocusItem : null);
-        }
+        visible: false // FARPLAY: le menu du bas de chiaki-ng n'est jamais affiché (panneau Farplay)
+        enabled: false
 
         Behavior on y {
             NumberAnimation {
@@ -933,7 +930,7 @@ Item {
         Loader {
             id: inlineMenuContent
             anchors.fill: parent
-            active: !useSeparateMenuWindow
+            active: false // FARPLAY
             sourceComponent: menuContentComponent
         }
     }
@@ -945,8 +942,9 @@ Item {
         y: menuController.open ? separateMenuY : separateMenuY + streamMenuHeight
         width: separateMenuWidth > 0 ? separateMenuWidth : view.width
         height: streamMenuHeight
-        open: useSeparateMenuWindow && menuController.open
-        closing: useSeparateMenuWindow && menuController.closing
+        visible: false // FARPLAY: jamais affichée
+        open: false
+        closing: false
         onCloseRequested: menuController.close()
         onDisplaySettingsRequested: {
             menuController.close();
@@ -965,6 +963,7 @@ Item {
         }
     }
 
+    // FARPLAY: dialogues de fin de partie et de PIN au style Farplay (mêmes appels Chiaki.*)
     Popup {
         id: sessionStopDialog
         property int closeAction: 0
@@ -972,11 +971,18 @@ Item {
         x: Math.round((root.width - width) / 2)
         y: Math.round((root.height - height) / 2)
         modal: true
-        padding: 30
+        padding: 0
+        background: Item {}
+        Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.62) }
         onAboutToShow: {
             closeAction = 0;
             sessionStopDialogActive = true;
             view.updateOverlayInteractionActive();
+        }
+        onOpened: {
+            view.grabInput(null);
+            if (stopDialogLoader.item)
+                stopDialogLoader.item.focusFirst();
         }
         onClosed: {
             view.releaseInput();
@@ -986,62 +992,14 @@ Item {
                 Chiaki.stopSession(closeAction == 1);
         }
 
-        ColumnLayout {
-            Label {
-                Layout.alignment: Qt.AlignCenter
-                text: qsTr("Disconnect Session")
-                font.bold: true
-                font.pixelSize: 24
-            }
-
-            Label {
-                Layout.topMargin: 10
-                Layout.alignment: Qt.AlignCenter
-                text: qsTr("Do you want the Console to go into sleep mode?")
-                font.pixelSize: 20
-            }
-
-            RowLayout {
-                Layout.topMargin: 30
-                Layout.alignment: Qt.AlignCenter
-                spacing: 30
-
-                Button {
-                    id: sleepButton
-                    Layout.preferredWidth: 200
-                    Layout.minimumHeight: 80
-                    Layout.maximumHeight: 80
-                    text: qsTr("Sleep")
-                    font.pixelSize: 24
-                    Material.roundedScale: Material.SmallScale
-                    Material.background: activeFocus ? parent.Material.accent : undefined
-                    KeyNavigation.right: noButton
-                    Keys.onReturnPressed: clicked()
-                    Keys.onEscapePressed: sessionStopDialog.close()
-                    onVisibleChanged: if (visible) view.grabInput(sleepButton)
-                    onClicked: {
-                        sessionStopDialog.closeAction = 1;
-                        sessionStopDialog.close();
-                    }
-                }
-
-                Button {
-                    id: noButton
-                    Layout.preferredWidth: 200
-                    Layout.minimumHeight: 80
-                    Layout.maximumHeight: 80
-                    text: qsTr("No")
-                    font.pixelSize: 24
-                    Material.roundedScale: Material.SmallScale
-                    Material.background: activeFocus ? parent.Material.accent : undefined
-                    KeyNavigation.left: sleepButton
-                    Keys.onReturnPressed: clicked()
-                    Keys.onEscapePressed: sessionStopDialog.close()
-                    onClicked: {
-                        sessionStopDialog.closeAction = 2;
-                        sessionStopDialog.close();
-                    }
-                }
+        contentItem: Loader {
+            id: stopDialogLoader
+            source: "qrc:/farplay/ui/FarplayStopDialog.qml"
+            Connections {
+                target: stopDialogLoader.item
+                function onSleepRequested() { sessionStopDialog.closeAction = 1; sessionStopDialog.close(); }
+                function onKeepOnRequested() { sessionStopDialog.closeAction = 2; sessionStopDialog.close(); }
+                function onCancelRequested() { sessionStopDialog.close(); }
             }
         }
     }
@@ -1049,8 +1007,8 @@ Item {
     Window {
         id: separateSessionStopWindow
         property int closeAction: 0
-        readonly property int dialogWidth: 700
-        readonly property int dialogHeight: 260
+        readonly property int dialogWidth: 640
+        readonly property int dialogHeight: 224
         visible: false
         flags: Qt.Dialog | Qt.FramelessWindowHint
         color: "transparent"
@@ -1066,7 +1024,9 @@ Item {
                 closeAction = 0;
                 view.updateSeparateDialogGeometry(width, height);
                 requestActivate();
-                view.grabInput(separateSleepButton);
+                view.grabInput(null);
+                if (separateStopLoader.item)
+                    separateStopLoader.item.focusFirst();
             } else {
                 view.releaseInput();
                 if (closeAction)
@@ -1075,117 +1035,61 @@ Item {
             view.updateOverlayInteractionActive();
         }
 
-        Rectangle {
+        Loader {
+            id: separateStopLoader
             anchors.fill: parent
-            radius: 12
-            color: Material.background
-            border.color: "#666666"
-            border.width: 1
-        }
-
-        ColumnLayout {
-            anchors.centerIn: parent
-
-            Label {
-                Layout.alignment: Qt.AlignCenter
-                text: qsTr("Disconnect Session")
-                font.bold: true
-                font.pixelSize: 24
-            }
-
-            Label {
-                Layout.topMargin: 10
-                Layout.alignment: Qt.AlignCenter
-                text: qsTr("Do you want the Console to go into sleep mode?")
-                font.pixelSize: 20
-            }
-
-            RowLayout {
-                Layout.topMargin: 30
-                Layout.alignment: Qt.AlignCenter
-                spacing: 30
-
-                Button {
-                    id: separateSleepButton
-                    Layout.preferredWidth: 200
-                    Layout.minimumHeight: 80
-                    Layout.maximumHeight: 80
-                    text: qsTr("Sleep")
-                    font.pixelSize: 24
-                    Material.roundedScale: Material.SmallScale
-                    Material.background: activeFocus ? parent.Material.accent : undefined
-                    KeyNavigation.right: separateNoButton
-                    Keys.onReturnPressed: clicked()
-                    Keys.onEscapePressed: separateSessionStopWindow.visible = false
-                    onClicked: {
-                        separateSessionStopWindow.closeAction = 1;
-                        separateSessionStopWindow.visible = false;
-                    }
-                }
-
-                Button {
-                    id: separateNoButton
-                    Layout.preferredWidth: 200
-                    Layout.minimumHeight: 80
-                    Layout.maximumHeight: 80
-                    text: qsTr("No")
-                    font.pixelSize: 24
-                    Material.roundedScale: Material.SmallScale
-                    Material.background: activeFocus ? parent.Material.accent : undefined
-                    KeyNavigation.left: separateSleepButton
-                    Keys.onReturnPressed: clicked()
-                    Keys.onEscapePressed: separateSessionStopWindow.visible = false
-                    onClicked: {
-                        separateSessionStopWindow.closeAction = 2;
-                        separateSessionStopWindow.visible = false;
-                    }
-                }
+            source: "qrc:/farplay/ui/FarplayStopDialog.qml"
+            Connections {
+                target: separateStopLoader.item
+                function onSleepRequested() { separateSessionStopWindow.closeAction = 1; separateSessionStopWindow.visible = false; }
+                function onKeepOnRequested() { separateSessionStopWindow.closeAction = 2; separateSessionStopWindow.visible = false; }
+                function onCancelRequested() { separateSessionStopWindow.visible = false; }
             }
         }
     }
 
-    Dialog {
+    Popup {
         id: sessionPinDialog
         parent: Overlay.overlay
         x: Math.round((root.width - width) / 2)
         y: Math.round((root.height - height) / 2)
-        title: qsTr("Console Login PIN")
         modal: true
+        padding: 0
+        background: Item {}
+        Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.62) }
         closePolicy: Popup.NoAutoClose
-        standardButtons: Dialog.Ok | Dialog.Cancel
         onAboutToShow: {
-            standardButton(Dialog.Ok).enabled = Qt.binding(function() {
-                return pinField.acceptableInput;
-            });
-            view.grabInput(pinField);
+            if (pinDialogLoader.item)
+                pinDialogLoader.item.reset();
             sessionPinDialogActive = true;
             view.updateOverlayInteractionActive();
+        }
+        onOpened: {
+            view.grabInput(null);
+            if (pinDialogLoader.item)
+                pinDialogLoader.item.focusFirst();
         }
         onClosed: {
             view.releaseInput();
             sessionPinDialogActive = false;
             view.updateOverlayInteractionActive();
         }
-        onAccepted: Chiaki.enterPin(pinField.text)
-        onRejected: Chiaki.stopSession(false)
-        Material.roundedScale: Material.MediumScale
 
-        TextField {
-            id: pinField
-            echoMode: Chiaki.settings.streamerMode ? TextInput.Password : TextInput.Normal
-            implicitWidth: 200
-            validator: RegularExpressionValidator { regularExpression: /[0-9]{4}/ }
-            Keys.onReturnPressed: {
-                if(sessionPinDialog.standardButton(Dialog.Ok).enabled)
-                    sessionPinDialog.standardButton(Dialog.Ok).clicked()
+        contentItem: Loader {
+            id: pinDialogLoader
+            source: "qrc:/farplay/ui/FarplayPinDialog.qml"
+            Connections {
+                target: pinDialogLoader.item
+                function onPinEntered(pin) { Chiaki.enterPin(pin); sessionPinDialog.close(); }
+                function onCancelled() { sessionPinDialog.close(); Chiaki.stopSession(false); }
             }
         }
     }
 
     Window {
         id: separateSessionPinWindow
-        readonly property int dialogWidth: 360
-        readonly property int dialogHeight: 220
+        readonly property int dialogWidth: 560
+        readonly property int dialogHeight: 316
         visible: false
         flags: Qt.Dialog | Qt.FramelessWindowHint
         color: "transparent"
@@ -1198,72 +1102,27 @@ Item {
 
         onVisibleChanged: {
             if (visible) {
-                separatePinField.text = "";
+                if (separatePinLoader.item)
+                    separatePinLoader.item.reset();
                 view.updateSeparateDialogGeometry(width, height);
                 requestActivate();
-                view.grabInput(separatePinField);
+                view.grabInput(null);
+                if (separatePinLoader.item)
+                    separatePinLoader.item.focusFirst();
             } else {
                 view.releaseInput();
             }
             view.updateOverlayInteractionActive();
         }
 
-        Rectangle {
+        Loader {
+            id: separatePinLoader
             anchors.fill: parent
-            radius: 12
-            color: Material.background
-            border.color: "#666666"
-            border.width: 1
-        }
-
-        ColumnLayout {
-            anchors {
-                fill: parent
-                margins: 24
-            }
-
-            Label {
-                Layout.alignment: Qt.AlignCenter
-                text: qsTr("Console Login PIN")
-                font.bold: true
-                font.pixelSize: 24
-            }
-
-            TextField {
-                id: separatePinField
-                Layout.topMargin: 20
-                Layout.fillWidth: true
-                echoMode: Chiaki.settings.streamerMode ? TextInput.Password : TextInput.Normal
-                validator: RegularExpressionValidator { regularExpression: /[0-9]{4}/ }
-                Keys.onReturnPressed: if (acceptableInput) separatePinOkButton.clicked()
-                Keys.onEscapePressed: separateSessionPinWindow.visible = false
-            }
-
-            RowLayout {
-                Layout.topMargin: 20
-                Layout.alignment: Qt.AlignRight
-                spacing: 16
-
-                Button {
-                    text: qsTr("Cancel")
-                    Keys.onReturnPressed: clicked()
-                    onClicked: {
-                        separateSessionPinWindow.visible = false;
-                        Chiaki.stopSession(false);
-                    }
-                }
-
-                Button {
-                    id: separatePinOkButton
-                    text: qsTr("OK")
-                    enabled: separatePinField.acceptableInput
-                    Keys.onReturnPressed: clicked()
-                    onClicked: {
-                        const pin = separatePinField.text;
-                        separateSessionPinWindow.visible = false;
-                        Chiaki.enterPin(pin);
-                    }
-                }
+            source: "qrc:/farplay/ui/FarplayPinDialog.qml"
+            Connections {
+                target: separatePinLoader.item
+                function onPinEntered(pin) { separateSessionPinWindow.visible = false; Chiaki.enterPin(pin); }
+                function onCancelled() { separateSessionPinWindow.visible = false; Chiaki.stopSession(false); }
             }
         }
     }
@@ -1350,42 +1209,70 @@ Item {
                 menuController.close();
         }
     }
-    // FARPLAY: réglages rapides en jeu, ouverts depuis le menu du flux (l'entrée
-    // manette/clavier est alors captée par l'interface, pas envoyée à la PS5)
-    property bool farplayQuickOpen: false
-    Connections {
-        target: menuController
-        function onOpenChanged() { if (!menuController.open) view.farplayQuickOpen = false }
-    }
+    // FARPLAY: le panneau de réglages rapides + la barre du haut remplacent le menu du bas de
+    // chiaki-ng. Ouverture = menuController.open (PS button, Ctrl+O, bouton de la barre) ; l'entrée
+    // est alors captée par l'interface (Chiaki.window.grabInput) et n'est pas envoyée à la PS5.
     Loader {
         id: farplayQuickLoader
-        anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: view.streamMenuHeight + 24 }
-        width: Math.min(1040, view.width - 48)
+        anchors.fill: parent
         z: 200
-        active: view.farplayQuickOpen && menuController.open && !view.useSeparateMenuWindow
-        source: "qrc:/farplay/ui/FarplayQuickPanel.qml"
-        onLoaded: { item.width = Qt.binding(() => farplayQuickLoader.width); item.focusFirst() }
+        active: menuController.open && !view.useSeparateMenuWindow
+        source: "qrc:/farplay/ui/FarplayStreamOverlay.qml"
+        onLoaded: item.focusFirst()
         Connections {
             target: farplayQuickLoader.item
-            function onCloseRequested() {
-                view.farplayQuickOpen = false
-                view.grabInput(inlineMenuContent.item ? inlineMenuContent.item.initialFocusItem : null)
+            function onCloseRequested() { menuController.close() }
+            function onQuitRequested() { menuController.close(); Chiaki.window.close() }
+            function onDisplaySettingsRequested() { menuController.close(); root.openDisplaySettings() }
+        }
+    }
+    // Rendu vidéo en fenêtre native : le même panneau dans une fenêtre sans cadre
+    Window {
+        id: farplayQuickWindow
+        visible: view.useSeparateMenuWindow && menuController.open
+        flags: Qt.Tool | Qt.FramelessWindowHint
+        color: "transparent"
+        transientParent: view.hostWindow
+        x: view.separateStatsX
+        y: view.separateStatsY
+        width: view.separateStatsWidth > 0 ? view.separateStatsWidth : view.width
+        height: view.separateStatsHeight > 0 ? view.separateStatsHeight : view.height
+        onVisibleChanged: {
+            if (visible) {
+                requestActivate();
+                if (farplayQuickWindowLoader.item)
+                    farplayQuickWindowLoader.item.focusFirst();
+            } else if (view.hostWindow) {
+                view.hostWindow.requestActivate();
+            }
+        }
+        Loader {
+            id: farplayQuickWindowLoader
+            anchors.fill: parent
+            active: farplayQuickWindow.visible
+            source: "qrc:/farplay/ui/FarplayStreamOverlay.qml"
+            onLoaded: item.focusFirst()
+            Connections {
+                target: farplayQuickWindowLoader.item
+                function onCloseRequested() { menuController.close() }
+                function onQuitRequested() { menuController.close(); Chiaki.window.close() }
+                function onDisplaySettingsRequested() { menuController.close(); root.openDisplaySettings() }
             }
         }
     }
 
-    // FARPLAY: barre du haut (apparaît quand la souris approche du haut de l'écran)
+    // FARPLAY: barre du haut (apparaît quand la souris approche du haut de l'écran, ou menu ouvert)
     Loader {
         id: farplayBarLoader
         anchors { left: parent.left; right: parent.right; top: parent.top }
         height: 96
-        z: 150
+        z: 250
         active: !!Chiaki.session && !sessionLoading && !sessionError
         source: "qrc:/farplay/ui/FarplayStreamBar.qml"
         Binding {
             target: farplayBarLoader.item
             property: "shown"
-            value: Farplay.topBarActive && !menuController.open
+            value: Farplay.topBarActive || (menuController.open && !view.useSeparateMenuWindow)
             when: farplayBarLoader.status === Loader.Ready
         }
         Binding {
@@ -1396,11 +1283,7 @@ Item {
         }
         Connections {
             target: farplayBarLoader.item
-            function onQuickSettingsRequested() {
-                if (!menuController.open)
-                    menuController.toggle()
-                view.farplayQuickOpen = true
-            }
+            function onQuickSettingsRequested() { menuController.toggle() }
             function onMuteToggled() { if (Chiaki.session) Chiaki.session.muted = !Chiaki.session.muted }
             function onFullscreenToggled() {
                 if (Chiaki.window.visibility === Window.FullScreen)

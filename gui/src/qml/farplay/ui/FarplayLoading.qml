@@ -30,7 +30,6 @@ FocusScope {
         radius: width / 2
         anchors.horizontalCenter: parent.horizontalCenter
         y: parent.height * 0.42 - height / 2
-        gradient: Gradient { }
         color: "transparent"
         Canvas {
             anchors.fill: parent
