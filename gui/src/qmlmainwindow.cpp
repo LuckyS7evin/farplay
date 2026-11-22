@@ -5,6 +5,7 @@
 #include "chiaki/time.h"
 #include "streamsession.h"
 #include "farplay/farplaystats.h" // FARPLAY:
+#include "farplay/farplayimage.h" // FARPLAY:
 
 #include <qpa/qplatformnativeinterface.h>
 
@@ -2221,6 +2222,8 @@ static bool map_frame(pl_gpu gpu, pl_tex *tex,
             << " fmt=" << frame->format;
     }
 
+    if (ok)
+        farplay::Image::instance().adjustSourceColor(&out_frame->color); // FARPLAY: luminosité SDR
     if (!ok) {
         fprintf(stderr, "Failed mapping AVFrame!\n");
         qCWarning(chiakiGui) << "Failed to map AVFrame to Placebo frame!";
@@ -2684,6 +2687,7 @@ QmlMainWindow::~QmlMainWindow()
     // User shader hooks hold a reference to the GPU (their descriptors destroy
     // buffers/textures via p->gpu), so they must be released before the GPU is.
     pl_mpv_user_shader_destroy(&fsr_hook);
+    farplay::Image::instance().destroyGpu(); // FARPLAY:
     pl_mpv_user_shader_destroy(&fsrcnnx_hook_8);
     pl_mpv_user_shader_destroy(&fsrcnnx_hook_16);
     if (render_backend == RenderBackend::Vulkan) {
@@ -5295,12 +5299,25 @@ renderer_backend_ready:
         quick_render->moveToThread(render_thread);
     }
 
-    connect(quick_render, &QQuickRenderControl::sceneChanged, this, [this]() {
+    // FARPLAY: pendant un flux actif, une mise à jour de l'interface (overlay de stats)
+    // est rendue avec la prochaine image vidéo (≤ 1 image source) au lieu de
+    // déclencher une présentation supplémentaire qui perturbe le pacing.
+    auto farplay_defer_quick = [this]() {
+        if (stream_session_active.loadAcquire() == 0)
+            return false;
+        const int64_t age = farplay::Stats::instance().lastSourceAgeUs();
+        return age >= 0 && age < 100000;
+    };
+    connect(quick_render, &QQuickRenderControl::sceneChanged, this, [this, farplay_defer_quick]() {
         armQuickNeedSync("sceneChanged");
+        if (farplay_defer_quick())
+            return;
         scheduleUpdate(render_backend != RenderBackend::OpenGL, UpdateRequestReason::SceneChanged);
     });
-    connect(quick_render, &QQuickRenderControl::renderRequested, this, [this]() {
+    connect(quick_render, &QQuickRenderControl::renderRequested, this, [this, farplay_defer_quick]() {
         quick_need_render.storeRelaxed(1);
+        if (farplay_defer_quick())
+            return;
         scheduleUpdate(render_backend != RenderBackend::OpenGL, UpdateRequestReason::RenderRequested);
     });
 
@@ -5329,6 +5346,7 @@ renderer_backend_ready:
     pl_options_reset(this->renderparams_opts, &pl_render_high_quality_params);
     this->renderparams_changed = true;
     this->fsr_hook = load_mpv_hook(placeboGpu(), QStringLiteral(":/shaders/FSR.glsl"));
+    farplay::Image::instance().initGpu(placeboGpu()); // FARPLAY:
     this->fsrcnnx_hook_8 = load_mpv_hook(placeboGpu(), QStringLiteral(":/shaders/FSRCNNX_x2_8-0-4-1.glsl"));
     this->fsrcnnx_hook_16 = load_mpv_hook(placeboGpu(), QStringLiteral(":/shaders/FSRCNNX_x2_16-0-4-1.glsl"));
 
@@ -6745,6 +6763,7 @@ void QmlMainWindow::render()
     // FARPLAY: temps GPU par passe (timestamps Vulkan de libplacebo)
     params.info_callback = &farplay::Stats::plInfoCallback;
     params.info_priv = &farplay::Stats::instance();
+    farplay::Image::instance().applyRenderParams(&params); // FARPLAY: lissage des dégradés
     const bool content_timed = params.frame_mixer == nullptr;
     const bool mixer_active = params.frame_mixer != nullptr;
     const bool has_settings = settings != nullptr;
@@ -6820,6 +6839,8 @@ void QmlMainWindow::render()
             }
             av_frame_free(&incoming);
         }
+        if (direct_frame.num_planes > 0)
+            farplay::Image::instance().adjustSourceColor(&direct_frame.color); // FARPLAY:
         direct_render_frame = direct_frame;
         frame_mix = {};
         frame_mix.num_frames = direct_frame.num_planes > 0 ? 1 : 0;
@@ -7303,6 +7324,15 @@ void QmlMainWindow::render()
     // old swapchain, so the window hung at launch. Fill in the defaults it inferred before.
     if (hint.primaries == PL_COLOR_PRIM_UNKNOWN && hint.transfer == PL_COLOR_TRC_UNKNOWN)
         pl_color_space_infer(&hint);
+    // FARPLAY: diagnostic HDR (source → sortie) et SDR sur écran HDR
+    if (hint_frame) {
+        if (farplay::Image::isHdrTransfer(hint_frame->color.transfer))
+            farplay::Stats::instance().setSourcePeak(hint_frame->color.hdr.max_luma);
+        farplay::Image::instance().adjustSwapchainHint(&hint);
+    }
+    farplay::Stats::instance().setOutputColor(sw_frame.color_space.transfer, sw_frame.color_space.primaries,
+                                              sw_frame.fbo ? sw_frame.fbo->params.w : 0,
+                                              sw_frame.fbo ? sw_frame.fbo->params.h : 0);
     struct pl_color_space target_csp = sw_frame.color_space;
     if (target_csp.hdr.max_luma <= 0.0f) {
         target_csp.hdr.max_luma = 0.0f;
@@ -7546,8 +7576,11 @@ void QmlMainWindow::render()
         const float dst_height = fabsf(pl_rect_h(target_frame.crop));
         if (src_width > 0.0f && src_height > 0.0f) {
             const float upscale_factor = qMin(dst_width / src_width, dst_height / src_height);
-            fsrcnnx_hook = select_spatial_hook(video_preset, configured_upscaler, upscale_factor,
-                                               fsr_hook, fsrcnnx_hook_8, fsrcnnx_hook_16);
+            const struct pl_hook *chiaki_hook = select_spatial_hook(video_preset, configured_upscaler, upscale_factor,
+                                                                    fsr_hook, fsrcnnx_hook_8, fsrcnnx_hook_16);
+            // FARPLAY: choix de l'upscaler (FSR 1 par défaut, netteté réglable, variante PQ)
+            fsrcnnx_hook = farplay::Image::instance().selectHook(hint_frame->color.transfer == PL_COLOR_TRC_PQ,
+                                                                 upscale_factor, chiaki_hook, fsrcnnx_hook_8);
         }
     }
     const struct pl_hook *active_hooks[] = {fsrcnnx_hook};

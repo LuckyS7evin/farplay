@@ -39,6 +39,8 @@ struct NetSample {
     double packet_loss = 0.0;   // 0..1
     int frames_lost = 0;
     double rtt_ms = 0.0;
+    double requested_bitrate_mbps = 0.0; // demandé à la PS5 (réglage)
+    double target_bitrate_mbps = 0.0;    // cible annoncée par la PS5
     bool connected = false;
 };
 
@@ -58,6 +60,9 @@ public:
     // Budgets du cahier des charges (ms GPU).
     static constexpr double kBudgetTotalMs = 8.0;
     static constexpr double kBudgetDecodeMs = 3.0;
+    static constexpr double kBudgetUpscaleMs = 1.0;
+
+    enum class Upscaler { None, Builtin, Chiaki, Fsr1, Fsrcnnx };
 
     static Stats &instance();
 
@@ -71,6 +76,12 @@ public:
     static void plInfoCallback(void *priv, const struct pl_render_info *info);
     void setPresentMode(int vk_present_mode, bool supported);
     void setSessionActive(bool active);
+    // Phase 2 : upscaling et diagnostic HDR (thread de rendu)
+    void setUpscaler(Upscaler used, float factor);
+    void setOutputColor(int pl_transfer, int pl_primaries, int width, int height);
+    void setSourcePeak(float nits);
+    // Âge de la dernière image source (µs), ou -1 si aucune.
+    int64_t lastSourceAgeUs() const;
 
     int overlayLevel() const { return overlay_level; }
     void setOverlayLevel(int level);
@@ -103,6 +114,12 @@ private:
     SampleRing<kRing> disp_interval_ms;
     SampleRing<kRing> gpu_frame_ms;   // PL_RENDER_STAGE_FRAME : traitement d'une image source
     SampleRing<kRing> gpu_blend_ms;   // PL_RENDER_STAGE_BLEND : composition/mélange par image affichée
+    SampleRing<kRing> gpu_upscale_ms; // passes d'upscaling (shaders FSR / FSRCNNX), incluses dans FRAME
+    Upscaler upscaler = Upscaler::None;
+    float upscale_factor = 0.0f;
+    int out_trc = 0, out_prim = 0, out_width = 0, out_height = 0;
+    float src_peak_nits = 0.0f;
+    std::atomic<int64_t> last_src_seen_us{0};
     int64_t last_src_us = 0;
     int64_t last_disp_us = 0;
     uint64_t src_count = 0;
@@ -116,6 +133,7 @@ private:
     // Accumulateurs du frame en cours (thread rendu uniquement)
     uint64_t acc_frame_ns = 0;
     uint64_t acc_blend_ns = 0;
+    uint64_t acc_upscale_ns = 0;
 
     std::atomic<bool> mailbox_enabled{false};
     std::atomic<bool> session_active{false};

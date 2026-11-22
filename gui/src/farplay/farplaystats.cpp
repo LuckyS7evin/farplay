@@ -5,6 +5,7 @@
 #include "qmlmainwindow.h"
 #include "streamsession.h"
 #include "chiaki/time.h"
+#include "farplay/farplayimage.h"
 
 #include <libplacebo/renderer.h>
 
@@ -27,6 +28,7 @@ extern "C" {
 
 #include <algorithm>
 #include <array>
+#include <cstring>
 
 #ifndef FARPLAY_GIT_HASH
 #define FARPLAY_GIT_HASH "dev"
@@ -144,6 +146,7 @@ void Stats::registerQml(QmlBackend *backend, QmlMainWindow *window)
 
     QQmlEngine::setObjectOwnership(&s, QQmlEngine::CppOwnership);
     qmlRegisterSingletonInstance("org.streetpea.chiaking", 1, 0, "Farplay", &s);
+    Image::registerQml();
 
     QPointer<QmlBackend> b(backend);
     s.net = [b]() {
@@ -156,6 +159,8 @@ void Stats::registerQml(QmlBackend *backend, QmlMainWindow *window)
         n.packet_loss = session->GetAveragePacketLoss();
         n.frames_lost = session->GetFramesLost();
         n.rtt_ms = session->GetRttUs() / 1000.0;
+        n.requested_bitrate_mbps = session->GetFarplayRequestedBitrate() / 1000.0;
+        n.target_bitrate_mbps = session->GetFarplayTargetBitrate() / 1000.0; // unité supposée kbps, à confirmer
         return n;
     };
     connect(backend, &QmlBackend::sessionChanged, &s, [&s](StreamSession *session) {
@@ -178,6 +183,7 @@ void Stats::onSourceFrame(const AVFrame *frame)
     int sw_fmt = frame->format;
     if (frame->hw_frames_ctx && frame->hw_frames_ctx->data)
         sw_fmt = ((const AVHWFramesContext *)frame->hw_frames_ctx->data)->sw_format;
+    last_src_seen_us.store(now, std::memory_order_relaxed);
     QMutexLocker lock(&mutex);
     if (last_src_us > 0 && now > last_src_us)
         src_interval_ms.push((now - last_src_us) / 1000.0f);
@@ -204,8 +210,11 @@ void Stats::onDisplayFrame(int64_t now_us)
         gpu_frame_ms.push(acc_frame_ns / 1e6f);
     if (acc_blend_ns)
         gpu_blend_ms.push(acc_blend_ns / 1e6f);
+    if (acc_upscale_ns)
+        gpu_upscale_ms.push(acc_upscale_ns / 1e6f);
     acc_frame_ns = 0;
     acc_blend_ns = 0;
+    acc_upscale_ns = 0;
 }
 
 void Stats::plInfoCallback(void *priv, const struct pl_render_info *info)
@@ -216,11 +225,49 @@ void Stats::plInfoCallback(void *priv, const struct pl_render_info *info)
     Stats *s = static_cast<Stats *>(priv);
     if (!s || !info || !info->pass)
         return;
+    const uint64_t ns = info->pass->last;
+    const char *desc = info->pass->shader ? info->pass->shader->description : nullptr;
+    // Passes d'upscaling : shaders Farplay (FSR1), FSR de chiaki-ng et FSRCNNX.
+    const bool upscale = desc && (std::strstr(desc, "Farplay FSR") || std::strstr(desc, "FidelityFX")
+                                  || std::strstr(desc, "feature map") || std::strstr(desc, "mapping ")
+                                  || std::strstr(desc, "sub-band") || std::strstr(desc, "aggregation"));
     QMutexLocker lock(&s->mutex);
     if (info->stage == PL_RENDER_STAGE_FRAME)
-        s->acc_frame_ns += info->pass->last;
+        s->acc_frame_ns += ns;
     else
-        s->acc_blend_ns += info->pass->last;
+        s->acc_blend_ns += ns;
+    if (upscale)
+        s->acc_upscale_ns += ns;
+}
+
+void Stats::setUpscaler(Upscaler used, float factor)
+{
+    QMutexLocker lock(&mutex);
+    upscaler = used;
+    upscale_factor = factor;
+}
+
+void Stats::setOutputColor(int pl_transfer, int pl_primaries, int width, int height)
+{
+    QMutexLocker lock(&mutex);
+    out_trc = pl_transfer;
+    out_prim = pl_primaries;
+    out_width = width;
+    out_height = height;
+}
+
+void Stats::setSourcePeak(float nits)
+{
+    QMutexLocker lock(&mutex);
+    src_peak_nits = nits;
+}
+
+int64_t Stats::lastSourceAgeUs() const
+{
+    const int64_t last = last_src_seen_us.load(std::memory_order_relaxed);
+    if (last <= 0)
+        return -1;
+    return (int64_t)chiaki_time_now_monotonic_us() - last;
 }
 
 void Stats::setPresentMode(int vk_present_mode, bool supported)
@@ -240,6 +287,7 @@ void Stats::setSessionActive(bool active)
             disp_interval_ms.clear();
             gpu_frame_ms.clear();
             gpu_blend_ms.clear();
+            gpu_upscale_ms.clear();
             last_src_us = last_disp_us = 0;
             src_count = disp_count = 0;
             src_pix_fmt = -1;
@@ -288,7 +336,10 @@ void Stats::setCsvLogging(bool enabled)
 void Stats::tick()
 {
     const int64_t now = (int64_t)chiaki_time_now_monotonic_us();
-    RingStats src, disp, gframe, gblend;
+    RingStats src, disp, gframe, gblend, gup;
+    Upscaler up;
+    float up_factor, peak;
+    int otrc, oprim, ow, oh;
     uint64_t sc, dc;
     int w, h, pf, swf, trc, prim, pmode;
     bool psup;
@@ -298,6 +349,9 @@ void Stats::tick()
         disp = computeStats(disp_interval_ms);
         gframe = computeStats(gpu_frame_ms);
         gblend = computeStats(gpu_blend_ms);
+        gup = computeStats(gpu_upscale_ms);
+        up = upscaler; up_factor = upscale_factor; peak = src_peak_nits;
+        otrc = out_trc; oprim = out_prim; ow = out_width; oh = out_height;
         sc = src_count; dc = disp_count;
         w = src_width; h = src_height;
         pf = src_pix_fmt; swf = src_sw_fmt;
@@ -364,6 +418,54 @@ void Stats::tick()
     s[QStringLiteral("packetLoss")] = n.packet_loss * 100.0;
     s[QStringLiteral("framesLost")] = n.frames_lost;
     s[QStringLiteral("rttMs")] = n.rtt_ms;
+    s[QStringLiteral("targetBitrate")] = n.target_bitrate_mbps;
+    s[QStringLiteral("requestedBitrate")] = n.requested_bitrate_mbps;
+
+    // --- Phase 2 : upscaling ---
+    const bool has_up_shader = up == Upscaler::Fsr1 || up == Upscaler::Fsrcnnx || up == Upscaler::Chiaki;
+    QString up_name;
+    switch (up) {
+    case Upscaler::None: up_name = QStringLiteral("aucun (×1)"); break;
+    case Upscaler::Builtin: up_name = QStringLiteral("libplacebo"); break;
+    case Upscaler::Chiaki: up_name = QStringLiteral("réglage chiaki-ng"); break;
+    case Upscaler::Fsr1: up_name = QStringLiteral("FSR 1"); break;
+    case Upscaler::Fsrcnnx: up_name = QStringLiteral("FSRCNNX"); break;
+    }
+    s[QStringLiteral("upscaler")] = up_name;
+    s[QStringLiteral("upscaleFactor")] = up_factor;
+    s[QStringLiteral("outResolution")] = ow > 0 ? QStringLiteral("%1×%2").arg(ow).arg(oh) : QStringLiteral("—");
+    s[QStringLiteral("gpuUpscaleAvg")] = has_up_shader ? gup.avg : 0.0;
+    s[QStringLiteral("gpuUpscaleP99")] = has_up_shader ? gup.p99 : 0.0;
+    s[QStringLiteral("upscaleOverBudget")] = has_up_shader && gup.avg > kBudgetUpscaleMs;
+
+    // --- Phase 2 : diagnostic HDR (source → sortie) ---
+    const bool src_known = pf >= 0;
+    const bool src_hdr = trc == AVCOL_TRC_SMPTE2084 || trc == AVCOL_TRC_ARIB_STD_B67;
+    const bool out_hdr = otrc == PL_COLOR_TRC_PQ || otrc == PL_COLOR_TRC_HLG;
+    s[QStringLiteral("outHdr")] = out_hdr;
+    s[QStringLiteral("output")] = otrc ? QStringLiteral("%1 · %2").arg(out_hdr ? QStringLiteral("HDR10 (PQ)") : QStringLiteral("SDR"),
+                                                            oprim == PL_COLOR_PRIM_BT_2020 ? QStringLiteral("BT.2020") : QStringLiteral("BT.709"))
+                                      : QStringLiteral("—");
+    s[QStringLiteral("srcPeakNits")] = peak;
+    QString diag;
+    int diag_level = 0; // 0 = ok, 1 = info, 2 = problème
+    if (!src_known || !otrc) {
+        diag = QStringLiteral("En attente du flux");
+    } else if (src_hdr && out_hdr) {
+        diag = QStringLiteral("HDR de bout en bout");
+    } else if (src_hdr && !out_hdr) {
+        diag = QStringLiteral("Écran en SDR : activez « Utiliser le HDR » dans Windows, en plein écran");
+        diag_level = 2;
+    } else if (!src_hdr && out_hdr) {
+        diag = QStringLiteral("La PS5 envoie du SDR, converti en HDR (%1 nits)").arg(Image::instance().sdrWhiteNits());
+        diag_level = 1;
+    } else {
+        diag = QStringLiteral("La PS5 envoie du SDR : vérifiez son réglage HDR et la chaîne HDMI (ampli)");
+        diag_level = 2;
+    }
+    s[QStringLiteral("hdrDiag")] = diag;
+    s[QStringLiteral("hdrDiagLevel")] = diag_level;
+    s[QStringLiteral("overBudget")] = gpu_total > kBudgetTotalMs || (has_up_shader && gup.avg > kBudgetUpscaleMs);
     snap = s;
     emit snapshotChanged();
 
@@ -387,7 +489,9 @@ void Stats::writeCsv(const QVariantMap &s)
         QTextStream(&csv_file)
             << "t_s,build,fps_in,fps_out,src_interval_avg_ms,src_interval_p99_ms,disp_interval_avg_ms,disp_interval_p99_ms,disp_interval_max_ms,"
                "gpu_frame_avg_ms,gpu_frame_p99_ms,gpu_blend_avg_ms,gpu_blend_p99_ms,gpu_total_ms,decoder,zero_copy,bit_depth,resolution,hdr,primaries,"
-               "present_mode,bitrate_mbps,packet_loss_pct,frames_lost,rtt_ms\n";
+               "present_mode,bitrate_mbps,packet_loss_pct,frames_lost,rtt_ms,"
+               "upscaler,upscale_factor,gpu_upscale_avg_ms,gpu_upscale_p99_ms,out_resolution,output,src_peak_nits,"
+               "requested_bitrate_mbps,target_bitrate_mbps\n";
         emit csvLoggingChanged();
     }
     const double t = ((int64_t)chiaki_time_now_monotonic_us() - session_start_us) / 1e6;
@@ -400,7 +504,10 @@ void Stats::writeCsv(const QVariantMap &s)
         << f("gpuFrameAvg") << ',' << f("gpuFrameP99") << ',' << f("gpuBlendAvg") << ',' << f("gpuBlendP99") << ',' << f("gpuTotal") << ','
         << str("decoder") << ',' << (s.value(QStringLiteral("zeroCopy")).toBool() ? 1 : 0) << ',' << str("bitDepth") << ','
         << str("resolution") << ',' << str("hdr") << ',' << str("primaries") << ',' << str("presentMode") << ','
-        << f("bitrate") << ',' << f("packetLoss") << ',' << str("framesLost") << ',' << f("rttMs") << '\n';
+        << f("bitrate") << ',' << f("packetLoss") << ',' << str("framesLost") << ',' << f("rttMs") << ','
+        << str("upscaler") << ',' << f("upscaleFactor") << ',' << f("gpuUpscaleAvg") << ',' << f("gpuUpscaleP99") << ','
+        << str("outResolution") << ',' << str("output") << ',' << f("srcPeakNits") << ','
+        << f("requestedBitrate") << ',' << f("targetBitrate") << '\n';
     out.flush();
 }
 

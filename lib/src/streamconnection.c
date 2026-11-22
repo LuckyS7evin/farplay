@@ -74,6 +74,7 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_stream_connection_init(ChiakiStreamConnecti
 	stream_connection->streaminfo_early_buf_size = 0;
 	stream_connection->player_index = 0;
 	memset(stream_connection->led_state, 0, sizeof(stream_connection->led_state));
+	stream_connection->farplay_target_bitrate = 0; // FARPLAY:
 
 	stream_connection->haptic_intensity = Strong;
 	stream_connection->trigger_intensity = Strong;
@@ -701,6 +702,7 @@ static void stream_connection_takion_data_idle(ChiakiStreamConnection *stream_co
 			 q.target_bitrate, q.upstream_bitrate,
 			 q.upstream_loss,
 			 q.disable_upstream_audio, q.rtt, q.loss);
+		stream_connection->farplay_target_bitrate = (int32_t)q.target_bitrate; // FARPLAY:
 		stream_connection->measured_bitrate = chiaki_stream_stats_bitrate(&stream_connection->video_receiver->frame_processor.stream_stats, stream_connection->session->connect_info.video_profile.max_fps) / 1000000.0;
 		CHIAKI_LOGV(stream_connection->log, "StreamConnection measured bitrate: %.4f MBit/s", stream_connection->measured_bitrate);
 		chiaki_stream_stats_reset(&stream_connection->video_receiver->frame_processor.stream_stats);

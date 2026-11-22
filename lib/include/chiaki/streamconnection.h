@@ -78,6 +78,7 @@ typedef struct chiaki_stream_connection_t
 	char *remote_disconnect_reason;
 
 	double measured_bitrate;
+	int32_t farplay_target_bitrate; // FARPLAY: target_bitrate annoncé par la console (CONNECTIONQUALITY)
 } ChiakiStreamConnection;
 
 CHIAKI_EXPORT ChiakiErrorCode chiaki_stream_connection_init(ChiakiStreamConnection *stream_connection, ChiakiSession *session, double packet_loss_max);

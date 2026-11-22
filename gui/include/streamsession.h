@@ -353,6 +353,8 @@ class StreamSession : public QObject
 		quint64 DecoderFlushGeneration() const { return decoder_flush_generation.loadRelaxed(); }
 		int GetFramesLost()		{ return frames_lost; }
 		quint64 GetRttUs() const	{ return session.rtt_us; } // FARPLAY:
+		int GetFarplayRequestedBitrate() const	{ return session.connect_info.video_profile.bitrate; } // FARPLAY: kbps
+		int GetFarplayTargetBitrate() const	{ return session.stream_connection.farplay_target_bitrate; } // FARPLAY:
 		bool GetMuted()	{ return muted; }
 		void SetMuted(bool enable)	{ if (enable != muted) ToggleMute(); }
 		void SetAudioVolume(int volume) { audio_volume = volume; }

@@ -27,6 +27,14 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 
 - CI : premier build complet ~60 min (vcpkg sans cache) ; caches restore/save séparés pour les suivants. PR dependabot #1 (actions/cache v6) en échec, non traitée.
 
+## Phase 2 (en cours)
+- chiaki-ng embarque déjà FSR 1 (`gui/res/shaders/FSR.glsl`, mpv, EASU+RCAS sur LUMA) et FSRCNNX x2 8/16 → réutilisés.
+- `farplay::Image` (`gui/{include,src}/farplay/farplayimage.*`, QML `FarplayImage`) : upscaler {0 chiaki, 1 FSR 1 défaut, 2 FSRCNNX, 3 libplacebo}, netteté % (stops = 2×(1−%), 30 % ⇒ 1,4 stop ; chiaki utilisait 0,2 stop), variante FSR_PQ=1 pour les flux PQ, lissage des dégradés (deband libplacebo faible/moyen ; vrai deblocking non fait : le H.265 a déjà un filtre in-loop), SDR sur écran HDR (hint swapchain PQ/BT.2020 + `hdr.max_luma` = luminosité SDR sur les images SDR).
+- Copie Farplay du shader : `gui/res/farplay/shaders/FSR.glsl` (`//!PARAM farplay_sharpness`, DESC « Farplay FSR1 … » pour le classement des temps GPU).
+- Stats : temps GPU upscaling (passes FSR/FSRCNNX par description de shader), sortie écran (transfert/primaires de la swapchain), pic source, diagnostic HDR en clair, débit demandé / cible PS5 (`farplay_target_bitrate` ajouté dans `ChiakiStreamConnection`, unité supposée kbps à confirmer).
+- Overlay : mises à jour QML rendues avec la prochaine image vidéo pendant un flux (plus de présentation en plus).
+- Non fait : temps GPU du décodage (FFmpeg possède la file Vulkan Video).
+
 ## Fichiers Farplay
 - `gui/src/farplay/farplay.cmake` : sources, qrc, FARPLAY_GIT_HASH, OUTPUT_NAME.
 - `gui/{include,src}/farplay/farplaystats.*` : `farplay::Stats` (singleton QML `Farplay`, compteurs, timings GPU, CSV `Documents/Farplay/stats-*.csv`).

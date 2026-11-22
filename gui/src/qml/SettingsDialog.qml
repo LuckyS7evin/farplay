@@ -960,6 +960,118 @@ DialogView {
                         text: qsTr("Une ligne par seconde dans Documents/Farplay")
                     }
 
+                    // FARPLAY: réglages d'image (phase 2)
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Upscaling (Farplay):")
+                    }
+
+                    C.ComboBox {
+                        Layout.preferredWidth: 400
+                        model: [qsTr("Réglage chiaki-ng (Render Preset)"), qsTr("FSR 1 (recommandé)"), qsTr("FSRCNNX (réseau léger)"), qsTr("libplacebo seul")]
+                        currentIndex: FarplayImage.upscaler
+                        onActivated: index => FarplayImage.upscaler = index
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Passe de 1080p à la résolution de l'écran. FSR 1 : net, < 1 ms GPU")
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Netteté:")
+                    }
+
+                    C.Slider {
+                        Layout.preferredWidth: 200
+                        from: 0
+                        to: 100
+                        stepSize: 5
+                        value: FarplayImage.sharpness
+                        onMoved: FarplayImage.sharpness = value
+                        Label {
+                            anchors { left: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 10 }
+                            text: parent.value + " %"
+                        }
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Renforce les contours après FSR 1. Trop haut = halos (conseillé : 30 %)")
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Lissage des dégradés:")
+                    }
+
+                    C.ComboBox {
+                        Layout.preferredWidth: 400
+                        model: [qsTr("Coupé"), qsTr("Faible (recommandé)"), qsTr("Moyen")]
+                        currentIndex: FarplayImage.deband
+                        onActivated: index => FarplayImage.deband = index
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Atténue les marches de couleur du ciel dues à la compression")
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("SDR sur écran HDR:")
+                    }
+
+                    C.CheckBox {
+                        checked: FarplayImage.sdrToHdr
+                        onToggled: FarplayImage.sdrToHdr = checked
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Garde l'écran en HDR quand la PS5 envoie du SDR")
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Luminosité SDR:")
+                    }
+
+                    C.Slider {
+                        Layout.preferredWidth: 200
+                        enabled: FarplayImage.sdrToHdr
+                        from: 80
+                        to: 400
+                        stepSize: 10
+                        value: FarplayImage.sdrWhiteNits
+                        onMoved: FarplayImage.sdrWhiteNits = value
+                        Label {
+                            anchors { left: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 10 }
+                            text: parent.value + " nits"
+                        }
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Luminosité du blanc d'un flux SDR affiché en HDR (conseillé : 200)")
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Image (Farplay):")
+                    }
+
+                    C.Button {
+                        text: qsTr("Recommandé")
+                        onClicked: FarplayImage.resetRecommended()
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Remet les réglages d'image conseillés")
+                    }
+
                     Label {
                         Layout.alignment: Qt.AlignRight
                         text: qsTr("Render Preset:")

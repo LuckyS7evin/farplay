@@ -72,8 +72,26 @@ Rectangle {
 
             Key { text: "HDR reçu" }
             Val {
-                text: "%1 · %2".arg(overlay.s.hdr || "—").arg(overlay.s.primaries || "—")
+                text: "%1 · %2%3".arg(overlay.s.hdr || "—").arg(overlay.s.primaries || "—")
+                    .arg(overlay.s.srcPeakNits > 0 ? " · " + overlay.n0(overlay.s.srcPeakNits) + " nits" : "")
                 color: overlay.s.hdrReceived ? overlay.cMint : overlay.cIvory
+            }
+
+            Key { text: "Sortie écran" }
+            Val {
+                text: overlay.s.output || "—"
+                color: overlay.s.outHdr ? overlay.cMint : overlay.cIvory
+            }
+
+            Key { text: "Diagnostic HDR" }
+            Val {
+                text: overlay.s.hdrDiag || "—"
+                color: overlay.s.hdrDiagLevel === 2 ? overlay.cAlert : (overlay.s.hdrDiagLevel === 0 ? overlay.cMint : overlay.cIvory)
+            }
+
+            Key { text: "Upscaling" }
+            Val {
+                text: "%1 · ×%2 → %3".arg(overlay.s.upscaler || "—").arg(overlay.s.upscaleFactor ? overlay.s.upscaleFactor.toFixed(2) : "—").arg(overlay.s.outResolution || "—")
             }
 
             Key { text: "Images reçues" }
@@ -88,8 +106,14 @@ Rectangle {
             Key { text: "GPU rendu source" }
             Val { text: "%1 · p99 %2".arg(overlay.ms(overlay.s.gpuFrameAvg)).arg(overlay.ms(overlay.s.gpuFrameP99)) }
 
+            Key { text: "GPU upscaling" }
+            Val {
+                text: overlay.s.gpuUpscaleAvg > 0 ? "%1 · p99 %2 / 1 ms".arg(overlay.ms(overlay.s.gpuUpscaleAvg)).arg(overlay.ms(overlay.s.gpuUpscaleP99)) : "—"
+                color: overlay.s.upscaleOverBudget ? overlay.cAlert : overlay.cIvory
+            }
+
             Key { text: "GPU composition" }
-            Val { text: "%1 · p99 %2".arg(overlay.ms(overlay.s.gpuBlendAvg)).arg(overlay.ms(overlay.s.gpuBlendP99)) }
+            Val { text: overlay.s.gpuBlendAvg > 0 ? "%1 · p99 %2".arg(overlay.ms(overlay.s.gpuBlendAvg)).arg(overlay.ms(overlay.s.gpuBlendP99)) : "non utilisée"; color: overlay.s.gpuBlendAvg > 0 ? overlay.cIvory : overlay.cDim }
 
             Key { text: "GPU total / image" }
             Val {
@@ -103,8 +127,15 @@ Rectangle {
                 color: overlay.s.presentFallback ? overlay.cAlert : overlay.cIvory
             }
 
+            Key { text: "Débit" }
+            Val {
+                text: "%1 Mbps · cible PS5 %2 · demandé %3".arg(overlay.n1(overlay.s.bitrate))
+                    .arg(overlay.s.targetBitrate > 0 ? overlay.n1(overlay.s.targetBitrate) : "—")
+                    .arg(overlay.n0(overlay.s.requestedBitrate))
+            }
+
             Key { text: "Réseau" }
-            Val { text: "%1 Mbps · RTT %2 ms".arg(overlay.n1(overlay.s.bitrate)).arg(overlay.n1(overlay.s.rttMs)) }
+            Val { text: "RTT %1 ms".arg(overlay.n1(overlay.s.rttMs)) }
 
             Key { text: "Pertes" }
             Val {
