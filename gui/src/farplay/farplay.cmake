@@ -6,6 +6,10 @@ target_sources(chiaki PRIVATE
 	src/farplay/farplaystats.cpp
 	include/farplay/farplayimage.h
 	src/farplay/farplayimage.cpp
+	include/farplay/fgengine.h
+	src/farplay/fgengine.cpp
+	include/farplay/farplayframegen.h
+	src/farplay/farplayframegen.cpp
 	res/farplay/farplay.qrc
 )
 

@@ -6,6 +6,7 @@
 #include "streamsession.h"
 #include "farplay/farplaystats.h" // FARPLAY:
 #include "farplay/farplayimage.h" // FARPLAY:
+#include "farplay/farplayframegen.h" // FARPLAY:
 
 #include <qpa/qplatformnativeinterface.h>
 
@@ -2688,6 +2689,7 @@ QmlMainWindow::~QmlMainWindow()
     // buffers/textures via p->gpu), so they must be released before the GPU is.
     pl_mpv_user_shader_destroy(&fsr_hook);
     farplay::Image::instance().destroyGpu(); // FARPLAY:
+    farplay::FrameGen::instance().destroyGpu(); // FARPLAY:
     pl_mpv_user_shader_destroy(&fsrcnnx_hook_8);
     pl_mpv_user_shader_destroy(&fsrcnnx_hook_16);
     if (render_backend == RenderBackend::Vulkan) {
@@ -2967,6 +2969,9 @@ const struct pl_filter_config *QmlMainWindow::effectiveFrameMixerConfig(const st
     if (bypass_frame_queue)
         return nullptr;
     Q_UNUSED(render_params);
+    // FARPLAY: la frame gen interne a besoin du rendu à la cadence de l'écran
+    if (farplay::FrameGen::instance().internalActive())
+        return pl_find_filter_config("oversample", PL_FILTER_FRAME_MIXING);
 
     switch (video_preset) {
     case VideoPreset::Fast:
@@ -4687,7 +4692,8 @@ int QmlMainWindow::effectiveQueueDepthLimit() const
     }
 
     // Always use low-latency queue depth regardless of frame mixer mode.
-    return qMax(depth_limit, 2);
+    // FARPLAY: la frame gen garde l'image suivante en file (+1)
+    return qMax(qMax(depth_limit, 2), farplay::FrameGen::instance().minQueueDepth());
 }
 
 int QmlMainWindow::pendingFrameOverflowLimit(int submission_depth_limit) const
@@ -5347,6 +5353,7 @@ renderer_backend_ready:
     this->renderparams_changed = true;
     this->fsr_hook = load_mpv_hook(placeboGpu(), QStringLiteral(":/shaders/FSR.glsl"));
     farplay::Image::instance().initGpu(placeboGpu()); // FARPLAY:
+    farplay::FrameGen::instance().initGpu(placeboGpu(), placebo_log); // FARPLAY:
     this->fsrcnnx_hook_8 = load_mpv_hook(placeboGpu(), QStringLiteral(":/shaders/FSRCNNX_x2_8-0-4-1.glsl"));
     this->fsrcnnx_hook_16 = load_mpv_hook(placeboGpu(), QStringLiteral(":/shaders/FSRCNNX_x2_16-0-4-1.glsl"));
 
@@ -6774,6 +6781,10 @@ void QmlMainWindow::render()
     const int target_contrast = apply_display_target ? settings->GetDisplayTargetContrast() : 0;
 
     uint64_t ts_pre_update = chiaki_time_now_monotonic_us();
+    // FARPLAY: retard de présentation (une image source) quand la frame gen interne est active
+    const double farplay_fg_delay_s = bypass_frame_queue ? 0.0
+        : farplay::FrameGen::instance().presentDelaySeconds(stream_configured_frame_interval_ms / 1000.0);
+    farplay::Stats::instance().setFrameGenDelay(farplay_fg_delay_s * 1000.0);
     double refresh_rate = screen() ? screen()->refreshRate() : 60.0;
     if (refresh_rate <= 1.0)
         refresh_rate = 60.0;
@@ -6801,6 +6812,7 @@ void QmlMainWindow::render()
     qparams.vsync_duration = vsync_duration;
     qparams.pts = playback_started
         ? (double)(ts_pre_update - ts_start) / 1000000.0 + vsync_duration - kPtsStaleMarginS
+            - farplay_fg_delay_s // FARPLAY: retard d'une image source pour la frame gen
         : 0.0;
     const int depth_limit = effectiveQueueDepthLimit();
     enum pl_queue_status queue_status;
@@ -6928,6 +6940,7 @@ void QmlMainWindow::render()
                 const uint64_t ts_refresh = chiaki_time_now_monotonic_us();
                 qparams.pts = playback_started && ts_refresh > ts_start
                     ? (double)(ts_refresh - ts_start) / 1000000.0 + vsync_duration - kPtsStaleMarginS
+                        - farplay_fg_delay_s // FARPLAY:
                     : 0.0;
                 queue_status = pl_queue_update(placebo_queue, &frame_mix, &qparams);
                 queue_depth_cached.storeRelease(pl_queue_num_frames(placebo_queue));
@@ -7658,7 +7671,15 @@ void QmlMainWindow::render()
         logLatencyStats("render_prep", render_call_begin_us - render_entry_us_local);
     if (render_call_begin_us >= render_setup_begin_us)
         logRenderSetupStats(render_call_begin_us, render_call_begin_us - render_setup_begin_us);
-    if (!(bypass_frame_queue
+    // FARPLAY: génération d'images (interpolation entre images reçues)
+    bool farplay_fg_rendered = false;
+    if (bypass_frame_queue) {
+        if (farplay::FrameGen::instance().internalActive())
+            farplay::Stats::instance().setFrameGenState(farplay::Stats::FgState::Unavailable);
+    } else {
+        farplay_fg_rendered = farplay::FrameGen::instance().render(placebo_renderer, &frame_mix, &target_frame, &params);
+    }
+    if (!farplay_fg_rendered && !(bypass_frame_queue
         ? pl_render_image(placebo_renderer, &direct_render_frame, &target_frame, &params)
         : pl_render_image_mix(placebo_renderer, &frame_mix, &target_frame, &params)))
     {
@@ -7697,6 +7718,9 @@ bool QmlMainWindow::handleShortcut(QKeyEvent *event)
         switch (event->key()) {
         case Qt::Key_F3: // FARPLAY: niveau de l'overlay de stats
             farplay::Stats::instance().cycleOverlayLevel();
+            return true;
+        case Qt::Key_F4: // FARPLAY: couper/rétablir la frame gen interne
+            farplay::FrameGen::instance().toggleSuspended();
             return true;
         case Qt::Key_F11:
             if (windowState() != Qt::WindowFullScreen)

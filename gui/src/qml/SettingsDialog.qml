@@ -1072,6 +1072,60 @@ DialogView {
                         text: qsTr("Remet les réglages d'image conseillés")
                     }
 
+                    // FARPLAY: fluidité (phase 3)
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Génération d'images:")
+                    }
+
+                    C.ComboBox {
+                        Layout.preferredWidth: 400
+                        model: [qsTr("Coupée"), qsTr("Interne (recommandé)"), qsTr("AFMF (pilote AMD)")]
+                        currentIndex: FarplayFrameGen.mode
+                        onActivated: index => FarplayFrameGen.mode = index
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: FarplayFrameGen.mode === 2
+                            ? (FarplayFrameGen.amdGpu ? qsTr("Activez AFMF dans Adrenalin (profil de farplay.exe), plein écran") : qsTr("AFMF demande une carte AMD"))
+                            : qsTr("Crée des images intermédiaires. Plus fluide, + 1 image de latence. F4 = couper")
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Multiplicateur:")
+                    }
+
+                    C.ComboBox {
+                        Layout.preferredWidth: 400
+                        enabled: FarplayFrameGen.mode === 1
+                        model: [qsTr("x2 (30 → 60 fps, recommandé)"), qsTr("x3 (30 → 90 fps)"), qsTr("x4 (30 → 120 fps)"), qsTr("Fréquence de l'écran")]
+                        currentIndex: FarplayFrameGen.multiplier === 0 ? 3 : FarplayFrameGen.multiplier - 2
+                        onActivated: index => FarplayFrameGen.multiplier = index === 3 ? 0 : index + 2
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Écran conseillé à 120 Hz. x3/x4 : plus d'artefacts possibles")
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Protection du HUD:")
+                    }
+
+                    C.CheckBox {
+                        enabled: FarplayFrameGen.mode === 1
+                        checked: FarplayFrameGen.hudProtect
+                        onToggled: FarplayFrameGen.hudProtect = checked
+                    }
+
+                    Label {
+                        Layout.alignment: Qt.AlignRight
+                        text: qsTr("Évite que la mini-map et les textes tremblent")
+                    }
+
                     Label {
                         Layout.alignment: Qt.AlignRight
                         text: qsTr("Render Preset:")

@@ -1,0 +1,32 @@
+name: Farplay frame gen (banc de test)
+
+# Banc de test du moteur d'interpolation sur Vulkan logiciel (lavapipe) :
+# vérifie que l'interpolation bat nettement le simple fondu et garde le HUD intact.
+on:
+  push:
+    branches: [main, 'claude/**']
+    paths: ['gui/src/farplay/**', 'gui/include/farplay/**', '.github/workflows/farplay-fgtest.yml']
+  pull_request:
+    paths: ['gui/src/farplay/**', 'gui/include/farplay/**']
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fgtest:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dépendances
+        run: sudo apt-get update && sudo apt-get install -y libplacebo-dev mesa-vulkan-drivers g++ pkg-config
+      - name: Compilation
+        working-directory: gui/src/farplay/tests
+        run: g++ -std=c++17 -O2 fg_test.cpp ../fgengine.cpp -I../../../include $(pkg-config --cflags --libs libplacebo) -o fg_test
+      - name: Tests (lent, faible, rapide)
+        working-directory: gui/src/farplay/tests
+        run: |
+          ./fg_test 4 2
+          ./fg_test 24 10
+          ./fg_test 120 30

@@ -6,6 +6,7 @@
 #include "streamsession.h"
 #include "chiaki/time.h"
 #include "farplay/farplayimage.h"
+#include "farplay/farplayframegen.h"
 
 #include <libplacebo/renderer.h>
 
@@ -147,6 +148,7 @@ void Stats::registerQml(QmlBackend *backend, QmlMainWindow *window)
     QQmlEngine::setObjectOwnership(&s, QQmlEngine::CppOwnership);
     qmlRegisterSingletonInstance("org.streetpea.chiaking", 1, 0, "Farplay", &s);
     Image::registerQml();
+    FrameGen::registerQml(window->amdCard());
 
     QPointer<QmlBackend> b(backend);
     s.net = [b]() {
@@ -262,6 +264,28 @@ void Stats::setSourcePeak(float nits)
     src_peak_nits = nits;
 }
 
+void Stats::setFrameGenState(FgState state)
+{
+    QMutexLocker lock(&mutex);
+    fg_state = state;
+}
+
+void Stats::onFrameGenOutput(bool generated, double pyramid_ms, double flow_ms, double synth_ms)
+{
+    QMutexLocker lock(&mutex);
+    if (generated)
+        fg_generated++;
+    fg_pyr_ms = pyramid_ms;
+    fg_flow_ms = flow_ms;
+    fg_synth_ms = synth_ms;
+}
+
+void Stats::setFrameGenDelay(double ms)
+{
+    QMutexLocker lock(&mutex);
+    fg_delay_ms = ms;
+}
+
 int64_t Stats::lastSourceAgeUs() const
 {
     const int64_t last = last_src_seen_us.load(std::memory_order_relaxed);
@@ -340,6 +364,9 @@ void Stats::tick()
     Upscaler up;
     float up_factor, peak;
     int otrc, oprim, ow, oh;
+    FgState fgs;
+    uint64_t fgg;
+    double fpyr, fflow, fsynth, fdelay;
     uint64_t sc, dc;
     int w, h, pf, swf, trc, prim, pmode;
     bool psup;
@@ -352,6 +379,8 @@ void Stats::tick()
         gup = computeStats(gpu_upscale_ms);
         up = upscaler; up_factor = upscale_factor; peak = src_peak_nits;
         otrc = out_trc; oprim = out_prim; ow = out_width; oh = out_height;
+        fgs = fg_state; fgg = fg_generated;
+        fpyr = fg_pyr_ms; fflow = fg_flow_ms; fsynth = fg_synth_ms; fdelay = fg_delay_ms;
         sc = src_count; dc = disp_count;
         w = src_width; h = src_height;
         pf = src_pix_fmt; swf = src_sw_fmt;
@@ -469,7 +498,34 @@ void Stats::tick()
     }
     s[QStringLiteral("hdrDiag")] = diag;
     s[QStringLiteral("hdrDiagLevel")] = diag_level;
-    s[QStringLiteral("overBudget")] = gpu_total > kBudgetTotalMs || (has_up_shader && gup.avg > up_budget);
+    // --- Phase 3 : génération d'images ---
+    double fps_gen = 0.0;
+    if (prev_tick_us > 0 && fgg >= prev_fg_generated)
+        fps_gen = (fgg - prev_fg_generated) / 0.5; // tick de 500 ms
+    prev_fg_generated = fgg;
+    QString fg_name;
+    switch (fgs) {
+    case FgState::Off: fg_name = QStringLiteral("coupée"); break;
+    case FgState::Active: fg_name = QStringLiteral("interne"); break;
+    case FgState::Waiting: fg_name = QStringLiteral("interne · attente de l'image suivante"); break;
+    case FgState::Suspended: fg_name = QStringLiteral("interne · suspendue (F4)"); break;
+    case FgState::Afmf: fg_name = QStringLiteral("AFMF (pilote AMD)"); break;
+    case FgState::Unavailable: fg_name = QStringLiteral("indisponible (mode direct)"); break;
+    }
+    // Coût GPU par image source : pyramide + flux une fois, synthèse par image générée.
+    const double gen_per_src = fps_in > 1.0 ? fps_gen / fps_in : 0.0;
+    const double fg_cost = fgs == FgState::Active ? fpyr + fflow + fsynth * gen_per_src : 0.0;
+    s[QStringLiteral("fgState")] = fg_name;
+    s[QStringLiteral("fgActive")] = fgs == FgState::Active;
+    s[QStringLiteral("fpsGen")] = fps_gen;
+    s[QStringLiteral("fgFlowMs")] = fflow;
+    s[QStringLiteral("fgSynthMs")] = fsynth;
+    s[QStringLiteral("fgPyrMs")] = fpyr;
+    s[QStringLiteral("fgCostMs")] = fg_cost;
+    s[QStringLiteral("fgOverBudget")] = fg_cost > kBudgetFrameGenMs;
+    s[QStringLiteral("fgDelayMs")] = fdelay;
+    s[QStringLiteral("overBudget")] = gpu_total > kBudgetTotalMs || (has_up_shader && gup.avg > up_budget)
+        || fg_cost > kBudgetFrameGenMs;
     snap = s;
     emit snapshotChanged();
 
@@ -495,7 +551,8 @@ void Stats::writeCsv(const QVariantMap &s)
                "gpu_frame_avg_ms,gpu_frame_p99_ms,gpu_blend_avg_ms,gpu_blend_p99_ms,gpu_total_ms,decoder,zero_copy,bit_depth,resolution,hdr,primaries,"
                "present_mode,bitrate_mbps,packet_loss_pct,frames_lost,rtt_ms,"
                "upscaler,upscale_factor,gpu_upscale_avg_ms,gpu_upscale_p99_ms,out_resolution,output,src_peak_nits,"
-               "requested_bitrate_mbps,target_bitrate_mbps\n";
+               "requested_bitrate_mbps,target_bitrate_mbps,"
+               "fg_state,fps_gen,fg_pyr_ms,fg_flow_ms,fg_synth_ms,fg_cost_ms,fg_delay_ms\n";
         emit csvLoggingChanged();
     }
     const double t = ((int64_t)chiaki_time_now_monotonic_us() - session_start_us) / 1e6;
@@ -511,7 +568,9 @@ void Stats::writeCsv(const QVariantMap &s)
         << f("bitrate") << ',' << f("packetLoss") << ',' << str("framesLost") << ',' << f("rttMs") << ','
         << str("upscaler") << ',' << f("upscaleFactor") << ',' << f("gpuUpscaleAvg") << ',' << f("gpuUpscaleP99") << ','
         << str("outResolution") << ',' << str("output") << ',' << f("srcPeakNits") << ','
-        << f("requestedBitrate") << ',' << f("targetBitrate") << '\n';
+        << f("requestedBitrate") << ',' << f("targetBitrate") << ','
+        << str("fgState") << ',' << f("fpsGen") << ',' << f("fgPyrMs") << ',' << f("fgFlowMs") << ','
+        << f("fgSynthMs") << ',' << f("fgCostMs") << ',' << f("fgDelayMs") << '\n';
     out.flush();
 }
 

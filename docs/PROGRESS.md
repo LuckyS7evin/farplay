@@ -42,6 +42,12 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - Phase 0 (utilisateur) : AFMF fonctionne sur chiaki-ng mais qualité jugée moyenne, Lossless Scaling préféré → frame gen interne prioritaire, AFMF = option de dernier recours.
 - Saccades signalées dans les 3 modes : 30 fps sur écran 144 Hz en FIFO = cadence 4/5 rafraîchissements (27,8/34,7 ms, cf. p99 affichage ≈ 35 ms) + retards ponctuels du flux (p99 source 45–67 ms). Pistes : 120 Hz ou VRR, pacing phase 3.
 
+## Phase 3 (en cours) — frame generation
+- Décision : piste A implémentée avec un optical flow maison (même principe que FidelityFX OF : pyramide de luminance + appariement de blocs multi-échelle) plutôt que le SDK FidelityFX : l'API ffx du SDK n'expose pas l'optical flow seul (seulement la frame gen FSR3 qui exige vecteurs de mouvement et profondeur du jeu), et porter ses shaders HLSL serait lourd. Tout est en shaders libplacebo (pl_dispatch), sans dépendance nouvelle, testable sur Vulkan logiciel.
+- `farplay::FgEngine` (`fgengine.*`, sans Qt) : 3 slots RGBA16F (images reçues déjà rendues : FSR, deband, HDR), pyramide luma (L0 = 1/4, 5 niveaux), flux A→B grossier→fin (SAD 5×5, rayon 4 puis 2, prédicteurs voisins + flux de la paire précédente, biais immobile, sous-pixel parabolique), médiane vectorielle, synthèse à la phase t (sélection du vecteur par pixel parmi 6 candidats, repli occlusion vers l'image la plus proche, pixels fixes recopiés = protection HUD).
+- `farplay::FrameGen` (`farplayframegen.*`, QML `FarplayFrameGen`) : mode {coupée, interne (défaut), AFMF}, multiplicateur {x2 défaut, x3, x4, écran}, protection HUD, F4 = suspendre. Force le frame mixer (rendu à la cadence écran), retarde l'horloge pl_queue d'une image source + 3 ms (latence ajoutée affichée), file ≥ 3 images. Incompatible avec « Direct Frame Mapping » (signalé).
+- Banc de test : `gui/src/farplay/tests/fg_test.cpp` + workflow `farplay-fgtest.yml` (lavapipe). Résultats 1280×720 : gain +8 à +11 dB sur le fondu (4 à 120 px/image), HUD intact (73 dB). Limite connue : fine bande autour d'un HUD fixe sur fond mobile (zones découvertes).
+
 ## Fichiers Farplay
 - `gui/src/farplay/farplay.cmake` : sources, qrc, FARPLAY_GIT_HASH, OUTPUT_NAME.
 - `gui/{include,src}/farplay/farplaystats.*` : `farplay::Stats` (singleton QML `Farplay`, compteurs, timings GPU, CSV `Documents/Farplay/stats-*.csv`).

@@ -112,6 +112,22 @@ Rectangle {
                 color: overlay.s.upscaleOverBudget ? overlay.cAlert : overlay.cIvory
             }
 
+            Key { text: "Génération d'images" }
+            Val {
+                text: overlay.s.fgActive
+                    ? "%1 · +%2 fps · latence +%3 ms".arg(overlay.s.fgState).arg(overlay.n0(overlay.s.fpsGen)).arg(overlay.n0(overlay.s.fgDelayMs))
+                    : (overlay.s.fgState || "—")
+                color: overlay.s.fgActive ? overlay.cMint : overlay.cIvory
+            }
+
+            Key { text: "GPU frame gen" }
+            Val {
+                text: overlay.s.fgActive
+                    ? "%1 / 4 ms (flux %2 · synthèse %3)".arg(overlay.ms(overlay.s.fgCostMs)).arg(overlay.ms(overlay.s.fgFlowMs)).arg(overlay.ms(overlay.s.fgSynthMs))
+                    : "—"
+                color: overlay.s.fgOverBudget ? overlay.cAlert : overlay.cIvory
+            }
+
             Key { text: "GPU composition" }
             Val { text: overlay.s.gpuBlendAvg > 0 ? "%1 · p99 %2".arg(overlay.ms(overlay.s.gpuBlendAvg)).arg(overlay.ms(overlay.s.gpuBlendP99)) : "non utilisée"; color: overlay.s.gpuBlendAvg > 0 ? overlay.cIvory : overlay.cDim }
 
