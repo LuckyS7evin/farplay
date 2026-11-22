@@ -4848,7 +4848,9 @@ void QmlMainWindow::doneOpenGLContextCurrent()
 
 void QmlMainWindow::init(Settings *settings, bool exit_app_on_stream_exit)
 {
-    bypass_frame_queue = settings->GetDirectFrameMapping();
+    // FARPLAY: la frame gen et le lissage du pacing passent par la file d'images :
+    // le mode direct de chiaki-ng (activé par défaut) est ignoré dans ce cas.
+    bypass_frame_queue = settings->GetDirectFrameMapping() && !farplay::FrameGen::instance().timedPresentation();
     render_backend = settings->GetRenderBackend();
     setSurfaceType(render_backend == RenderBackend::Vulkan ? QWindow::VulkanSurface : QWindow::OpenGLSurface);
     qparams = {};
