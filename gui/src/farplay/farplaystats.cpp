@@ -525,6 +525,7 @@ void Stats::tick()
     case FgState::Suspended: fg_name = QStringLiteral("interne · suspendue (F4)"); break;
     case FgState::Afmf: fg_name = QStringLiteral("AFMF (pilote AMD)"); break;
     case FgState::Unavailable: fg_name = QStringLiteral("indisponible (mode direct)"); break;
+    case FgState::Pacing: fg_name = QStringLiteral("coupée · lissage du pacing"); break;
     }
     // Coût GPU par image source : pyramide + flux une fois, synthèse par image générée.
     const double gen_per_src = fps_in > 1.0 ? fps_gen / fps_in : 0.0;
@@ -538,6 +539,12 @@ void Stats::tick()
     s[QStringLiteral("fgCostMs")] = fg_cost;
     s[QStringLiteral("fgOverBudget")] = fg_cost > kBudgetFrameGenMs;
     s[QStringLiteral("fgDelayMs")] = fdelay;
+    // Lissage du pacing et synchronisation du son
+    s[QStringLiteral("pacingOn")] = FrameGen::instance().timedPresentation();
+    s[QStringLiteral("pacingMarginMs")] = FrameGen::instance().jitterMarginMs();
+    s[QStringLiteral("audioDelayMs")] = FrameGen::instance().audioDelayMs();
+    // 1 % low des images affichées (cadence correspondant au 99e centile de l'intervalle)
+    s[QStringLiteral("fpsOut1Low")] = disp.p99 > 0.0 ? 1000.0 / disp.p99 : 0.0;
     s[QStringLiteral("overBudget")] = gpu_total > kBudgetTotalMs || (has_up_shader && gup.avg > up_budget)
         || fg_cost > kBudgetFrameGenMs;
     snap = s;
@@ -566,7 +573,8 @@ void Stats::writeCsv(const QVariantMap &s)
                "present_mode,bitrate_mbps,packet_loss_pct,frames_lost,rtt_ms,"
                "upscaler,upscale_factor,gpu_upscale_avg_ms,gpu_upscale_p99_ms,out_resolution,output,src_peak_nits,"
                "requested_bitrate_mbps,target_bitrate_mbps,"
-               "fg_state,fps_gen,fg_pyr_ms,fg_flow_ms,fg_synth_ms,fg_cost_ms,fg_delay_ms\n";
+               "fg_state,fps_gen,fg_pyr_ms,fg_flow_ms,fg_synth_ms,fg_cost_ms,fg_delay_ms,"
+               "fps_out_1pct_low,pacing_margin_ms,audio_delay_ms\n";
         emit csvLoggingChanged();
     }
     const double t = ((int64_t)chiaki_time_now_monotonic_us() - session_start_us) / 1e6;
@@ -584,7 +592,8 @@ void Stats::writeCsv(const QVariantMap &s)
         << str("outResolution") << ',' << str("output") << ',' << f("srcPeakNits") << ','
         << f("requestedBitrate") << ',' << f("targetBitrate") << ','
         << str("fgState") << ',' << f("fpsGen") << ',' << f("fgPyrMs") << ',' << f("fgFlowMs") << ','
-        << f("fgSynthMs") << ',' << f("fgCostMs") << ',' << f("fgDelayMs") << '\n';
+        << f("fgSynthMs") << ',' << f("fgCostMs") << ',' << f("fgDelayMs") << ','
+        << f("fpsOut1Low") << ',' << f("pacingMarginMs") << ',' << f("audioDelayMs") << '\n';
     out.flush();
 }
 

@@ -66,7 +66,7 @@ public:
     static constexpr double kBudgetUpscaleNetMs = 4.0;
 
     enum class Upscaler { None, Builtin, Chiaki, Fsr1, Fsrcnnx, Fallback };
-    enum class FgState { Off, Active, Waiting, Suspended, Afmf, Unavailable };
+    enum class FgState { Off, Active, Waiting, Suspended, Afmf, Unavailable, Pacing };
 
     static Stats &instance();
 

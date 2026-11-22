@@ -55,6 +55,13 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - Identité : police Sora (OFL) + JetBrains Mono, icône `res/farplay/icons/farplay.{svg,ico}`, métadonnées exe Farplay, icône de fenêtre.
 - Test réseau intégré non fait (aucune base dans chiaki-ng) : l'assistant renvoie à la mesure pendant la première partie (overlay/diagnostic).
 
+## Après PushFPS (en attente de build, quota Actions)
+- Analyse de PushFPS (GPL-3.0, chiaki-ng + RIFE 4.25/4.26 via ONNX DirectML, FSR 4.1 FG avec mouvement estimé → ghosting reconnu). Idées reprises (réimplémentées, pas de code copié) :
+  1. Lissage du pacing (`FrameGen::pacing`, défaut activé) : horloge des images ajustée sur les arrivées (indice arrondi + régression linéaire, absorbe dérive et pertes), marge = 95e centile du retard + 2 ms, plafonnée à 12 ms avec frame gen / 25 ms seul ; sans frame gen, présentation de l'image courante à l'heure prévue via le même chemin (slot A, sans interpolation).
+  2. Son retardé du même délai que l'image : `StreamSession::DrainAudioOutRingBuffer` retient `audioDelayMs` dans l'anneau (agrandi à ≥ 250 ms) et jette l'excédent quand le retard baisse.
+  3. 1 % low des images affichées dans l'overlay et le CSV.
+- CI Windows en lancement manuel (quota de minutes : ~150 min par build sans cache, Windows ×2). Cache vcpkg : clé bin4, chemin relatif, à vérifier au prochain build.
+
 ## Fichiers Farplay
 - `gui/src/farplay/farplay.cmake` : sources, qrc, FARPLAY_GIT_HASH, OUTPUT_NAME.
 - `gui/{include,src}/farplay/farplaystats.*` : `farplay::Stats` (singleton QML `Farplay`, compteurs, timings GPU, CSV `Documents/Farplay/stats-*.csv`).

@@ -3,6 +3,7 @@
 #include <streamsession.h>
 #include <settings.h>
 #include <controllermanager.h>
+#include "farplay/farplayframegen.h" // FARPLAY:
 
 #include <chiaki/base64.h>
 #include <chiaki/streamconnection.h>
@@ -1428,7 +1429,9 @@ void StreamSession::InitAudio(unsigned int channels, unsigned int rate)
 
 	{
 		QMutexLocker locker(&audio_out_ring_mutex);
-		audio_out_ring_buf.resize((int)(audio_buffer_size * 8));
+		// FARPLAY: anneau assez grand pour retenir le retard du son (jusqu'à ~80 ms) en plus du tampon
+		farplay_audio_bytes_per_ms = (size_t)spec.freq * audio_out_sample_size / 1000;
+		audio_out_ring_buf.resize((int)qMax((size_t)audio_buffer_size * 8, farplay_audio_bytes_per_ms * 250));
 		audio_out_ring_read_pos = 0;
 		audio_out_ring_write_pos = 0;
 		audio_out_ring_fill = 0;
@@ -2085,8 +2088,28 @@ void StreamSession::DrainAudioOutRingBuffer()
 			}
 
 			size_t capacity = (size_t)audio_out_ring_buf.size();
+			// FARPLAY: le son est retenu du même retard que l'image (frame gen / lissage du pacing)
+			size_t hold = 0;
+			if(farplay_audio_bytes_per_ms > 0)
+			{
+				hold = (size_t)(farplay::FrameGen::instance().audioDelayMs() * farplay_audio_bytes_per_ms);
+				hold -= hold % audio_out_sample_size;
+				hold = qMin(hold, capacity / 2);
+				// Retard réduit : on jette l'excédent pour ne pas garder une latence inutile
+				const size_t keep = hold + target_queue_size;
+				if(audio_out_ring_fill > keep + target_queue_size)
+				{
+					size_t drop = audio_out_ring_fill - keep;
+					drop -= drop % audio_out_sample_size;
+					audio_out_ring_read_pos = (audio_out_ring_read_pos + drop) % capacity;
+					audio_out_ring_fill -= drop;
+				}
+				if(audio_out_ring_fill <= hold)
+					return;
+			}
+
 			size_t remaining_target = target_queue_size - SDL_GetQueuedAudioSize(audio_out);
-			size_t chunk_size = qMin(audio_out_ring_fill, qMin(remaining_target, capacity - audio_out_ring_read_pos));
+			size_t chunk_size = qMin(audio_out_ring_fill - hold, qMin(remaining_target, capacity - audio_out_ring_read_pos));
 			audio_chunk = QByteArray(audio_out_ring_buf.constData() + audio_out_ring_read_pos, (int)chunk_size);
 			audio_out_ring_read_pos = (audio_out_ring_read_pos + chunk_size) % capacity;
 			audio_out_ring_fill -= chunk_size;

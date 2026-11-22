@@ -187,6 +187,16 @@ FocusScope {
                     onToggled: (c) => FarplayFrameGen.hudProtect = c
                 }
             }
+            FpSettingRow {
+                Layout.fillWidth: true
+                title: "Lissage du pacing"
+                description: "Affiche les images à intervalle régulier même quand elles arrivent irrégulièrement. Ajoute la marge mesurée (quelques ms), le son est décalé d'autant."
+                costs: ({ fluidite: "+", latence: "+" })
+                FpSwitch {
+                    checked: FarplayFrameGen.pacing
+                    onToggled: (c) => FarplayFrameGen.pacing = c
+                }
+            }
             Text {
                 Layout.leftMargin: Theme.unit * 2
                 text: "F4 en jeu : couper/rétablir la frame gen"

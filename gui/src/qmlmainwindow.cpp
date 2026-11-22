@@ -2969,8 +2969,8 @@ const struct pl_filter_config *QmlMainWindow::effectiveFrameMixerConfig(const st
     if (bypass_frame_queue)
         return nullptr;
     Q_UNUSED(render_params);
-    // FARPLAY: la frame gen interne a besoin du rendu à la cadence de l'écran
-    if (farplay::FrameGen::instance().internalActive())
+    // FARPLAY: frame gen et lissage du pacing ont besoin du rendu à la cadence de l'écran
+    if (farplay::FrameGen::instance().timedPresentation())
         return pl_find_filter_config("oversample", PL_FILTER_FRAME_MIXING);
 
     switch (video_preset) {
@@ -3018,6 +3018,7 @@ void QmlMainWindow::presentFrame(ChiakiFfmpegFrame frame, int32_t frames_lost, q
 {
     const qint64 present_entry_us = static_cast<qint64>(chiaki_time_now_monotonic_us());
     farplay::Stats::instance().onSourceFrame(frame.frame); // FARPLAY: image source reçue
+    farplay::FrameGen::instance().noteSourceArrival(present_entry_us, stream_configured_frame_interval_ms / 1000.0); // FARPLAY: gigue
     if (decoder_delivery_us > 0 && present_entry_us >= decoder_delivery_us) {
         const qint64 gui_handoff_us = present_entry_us - decoder_delivery_us;
         if (gui_handoff_us >= 12000) {

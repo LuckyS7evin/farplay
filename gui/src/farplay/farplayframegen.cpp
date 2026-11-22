@@ -51,6 +51,7 @@ FrameGen::FrameGen(QObject *parent)
     const int m = st.value(QStringLiteral("framegen/multiplier"), 2).toInt();
     multiplier_.store(m == 0 || (m >= 2 && m <= 4) ? m : 2);
     hud_.store(st.value(QStringLiteral("framegen/hud_protect"), true).toBool());
+    pacing_.store(st.value(QStringLiteral("framegen/pacing"), true).toBool());
 }
 
 void FrameGen::registerQml(bool amd_gpu)
@@ -67,6 +68,7 @@ void FrameGen::save()
     st.setValue(QStringLiteral("framegen/mode"), mode());
     st.setValue(QStringLiteral("framegen/multiplier"), multiplier());
     st.setValue(QStringLiteral("framegen/hud_protect"), hudProtect());
+    st.setValue(QStringLiteral("framegen/pacing"), pacing());
     emit changed();
 }
 
@@ -98,6 +100,73 @@ void FrameGen::setHudProtect(bool v)
     }
 }
 
+void FrameGen::setPacing(bool v)
+{
+    if (v != pacing()) {
+        pacing_.store(v);
+        save();
+    }
+}
+
+void FrameGen::noteSourceArrival(int64_t now_us, double nominal_interval_s)
+{
+    // Une coupure (> 1 s) relance l'estimation.
+    if (last_arrival_us_ > 0 && now_us - last_arrival_us_ > 1000000) {
+        num_arrivals_ = 0;
+        arrival_head_ = 0;
+    }
+    last_arrival_us_ = now_us;
+    arrivals_[arrival_head_] = now_us;
+    arrival_head_ = (arrival_head_ + 1) % kArrivals;
+    if (num_arrivals_ < kArrivals)
+        num_arrivals_++;
+    if (++since_estimate_ >= 30) {
+        since_estimate_ = 0;
+        estimateJitter(nominal_interval_s);
+    }
+}
+
+void FrameGen::estimateJitter(double nominal_interval_s)
+{
+    // Horloge des images : chaque arrivée reçoit l'indice d'image le plus
+    // proche (une image perdue ne décale pas la suite), puis on ajuste une
+    // droite t = t0 + i·T (T estimé : absorbe la dérive entre l'horloge de
+    // la PS5 et celle du PC). Le retard d'une image = son écart au-dessus de
+    // la droite, ramené à l'arrivée la plus précoce. Marge = 95e centile + 2 ms.
+    const int n = num_arrivals_;
+    if (n < 60 || nominal_interval_s <= 0.0)
+        return;
+    const double tn = nominal_interval_s * 1e6;
+    const int first = (arrival_head_ - n + kArrivals) % kArrivals;
+    const int64_t t0 = arrivals_[first];
+    double idx[kArrivals], tt[kArrivals];
+    double si = 0, st = 0, sii = 0, sit = 0;
+    for (int k = 0; k < n; k++) {
+        const double t = double(arrivals_[(first + k) % kArrivals] - t0);
+        const double i = std::floor(t / tn + 0.5);
+        idx[k] = i;
+        tt[k] = t;
+        si += i; st += t; sii += i * i; sit += i * t;
+    }
+    const double den = n * sii - si * si;
+    if (den <= 0.0)
+        return;
+    const double slope = (n * sit - si * st) / den;
+    const double icpt = (st - slope * si) / n;
+    double res[kArrivals];
+    double mn = 1e18;
+    for (int k = 0; k < n; k++) {
+        res[k] = tt[k] - (icpt + slope * idx[k]);
+        mn = std::min(mn, res[k]);
+    }
+    for (int k = 0; k < n; k++)
+        res[k] -= mn;
+    const int p = std::min(n - 1, int(n * 0.95));
+    std::nth_element(res, res + p, res + n);
+    const double margin = std::clamp(res[p] / 1000.0 + 2.0, 3.0, 60.0);
+    margin_ms_.store(margin, std::memory_order_relaxed);
+}
+
 void FrameGen::toggleSuspended()
 {
     suspended_.store(!suspended());
@@ -119,19 +188,29 @@ void FrameGen::destroyGpu()
 
 double FrameGen::presentDelaySeconds(double source_interval_s) const
 {
-    if (!internalActive())
-        return 0.0;
-    // Une image source + 3 ms de marge pour la gigue d'arrivée : l'image
-    // suivante B est alors (presque) toujours disponible pour l'interpolation.
-    const double interval = source_interval_s > 0.005 ? source_interval_s : 1.0 / 30.0;
-    return interval + 0.003;
+    // Frame gen : une image source + la marge anti-gigue, pour que l'image
+    // suivante B soit (presque) toujours arrivée. Lissage seul : la marge.
+    // Marge : 3 ms fixes sans lissage ; sinon la marge mesurée, plafonnée
+    // pour tenir la latence (la frame gen ajoute déjà une image source).
+    const double cap_ms = internalActive() ? 12.0 : 25.0;
+    const double margin = (pacing() ? std::min(jitterMarginMs(), cap_ms) : 3.0) / 1000.0;
+    double delay = 0.0;
+    if (internalActive()) {
+        const double interval = source_interval_s > 0.005 ? source_interval_s : 1.0 / 30.0;
+        delay = interval + margin;
+    } else if (pacing()) {
+        delay = margin;
+    }
+    audio_delay_ms_.store(delay * 1000.0, std::memory_order_relaxed);
+    return delay;
 }
 
 bool FrameGen::render(pl_renderer renderer, const struct pl_frame_mix *mix,
                       const struct pl_frame *target, const struct pl_render_params *params)
 {
     Stats &stats = Stats::instance();
-    if (!internalActive() || !gpu_ok_ || !mix || mix->num_frames <= 0) {
+    const bool interp = internalActive();
+    if (!timedPresentation() || !gpu_ok_ || !mix || mix->num_frames <= 0) {
         stats.setFrameGenState(mode() == 2 ? Stats::FgState::Afmf
                                : (mode() == 1 ? Stats::FgState::Suspended : Stats::FgState::Off));
         return false;
@@ -145,13 +224,17 @@ bool FrameGen::render(pl_renderer renderer, const struct pl_frame_mix *mix,
         else if (ib < 0)
             ib = i;
     }
-    if (ia < 0 || ib < 0 || ib != ia + 1) {
+    if (ia < 0 || (interp && (ib < 0 || ib != ia + 1))) {
         stats.setFrameGenState(Stats::FgState::Waiting);
         return false;
     }
+    // Lissage seul : l'image reçue courante est affichée à l'instant prévu par
+    // l'horloge des images (pas d'interpolation ni de mélange).
+    if (!interp)
+        ib = ia;
     const float ta = static_cast<float>(mix->timestamps[ia]);
     const float tb = static_cast<float>(mix->timestamps[ib]);
-    float t = tb > ta ? -ta / (tb - ta) : 0.0f;
+    float t = (interp && tb > ta) ? -ta / (tb - ta) : 0.0f;
     t = std::clamp(t, 0.0f, 0.999f);
     const int mult = multiplier();
     if (mult >= 2)
@@ -167,7 +250,8 @@ bool FrameGen::render(pl_renderer renderer, const struct pl_frame_mix *mix,
     const uint64_t sig[2] = { mix->signatures[ia], mix->signatures[ib] };
     const pl_frame *src[2] = { mix->frames[ia], mix->frames[ib] };
     pl_tex tex[2] = {};
-    for (int k = 0; k < 2; k++) {
+    const int n_src = interp ? 2 : 1;
+    for (int k = 0; k < n_src; k++) {
         bool need = false;
         tex[k] = engine_.acquireSlot(sig[k], w, h, &need);
         if (!tex[k])
@@ -201,7 +285,7 @@ bool FrameGen::render(pl_renderer renderer, const struct pl_frame_mix *mix,
         return false;
 
     const FgEngine::Timings tm = engine_.timings();
-    stats.setFrameGenState(Stats::FgState::Active);
+    stats.setFrameGenState(interp ? Stats::FgState::Active : Stats::FgState::Pacing);
     stats.onFrameGenOutput(t > 1e-3f, tm.pyramid_ms, tm.flow_ms, tm.synth_ms);
     return true;
 }

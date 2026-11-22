@@ -98,7 +98,15 @@ Rectangle {
             Val { text: "%1 fps · %2 / p99 %3".arg(overlay.n1(overlay.s.fpsIn)).arg(overlay.ms(overlay.s.srcIntervalAvg)).arg(overlay.ms(overlay.s.srcIntervalP99)) }
 
             Key { text: "Images affichées" }
-            Val { text: "%1 fps · p99 %2 · max %3".arg(overlay.n1(overlay.s.fpsOut)).arg(overlay.ms(overlay.s.dispIntervalP99)).arg(overlay.ms(overlay.s.dispIntervalMax)) }
+            Val { text: "%1 fps · 1% low %2 · max %3".arg(overlay.n1(overlay.s.fpsOut)).arg(overlay.n1(overlay.s.fpsOut1Low)).arg(overlay.ms(overlay.s.dispIntervalMax)) }
+
+            Key { text: "Pacing" }
+            Val {
+                text: overlay.s.pacingOn
+                    ? "lissé · marge %1 ms · son +%2 ms".arg(overlay.n0(overlay.s.pacingMarginMs)).arg(overlay.n0(overlay.s.audioDelayMs))
+                    : "à l'arrivée (lissage coupé)"
+                color: overlay.s.pacingOn ? overlay.cMint : overlay.cDim
+            }
 
             Key { text: "GPU décodage" }
             Val { text: "n/d (phase 2)"; color: overlay.cDim }

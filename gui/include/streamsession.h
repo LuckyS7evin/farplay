@@ -254,6 +254,7 @@ class StreamSession : public QObject
 		SDL_AudioDeviceID audio_out;
 		SDL_AudioDeviceID audio_in;
 		size_t audio_out_sample_size;
+		size_t farplay_audio_bytes_per_ms = 0; // FARPLAY: retard du son (synchro frame gen)
 		QMutex audio_out_ring_mutex;
 		QByteArray audio_out_ring_buf;
 		size_t audio_out_ring_read_pos = 0;
