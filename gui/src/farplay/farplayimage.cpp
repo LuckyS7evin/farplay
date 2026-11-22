@@ -105,6 +105,8 @@ void Image::initGpu(pl_gpu gpu)
     gpu_ = gpu;
     fsr_sdr_ = loadFsr(gpu, false);
     fsr_pq_ = loadFsr(gpu, true);
+    if (!fsr_sdr_ || !fsr_pq_)
+        qWarning("Farplay: échec du chargement du shader FSR 1 (repli libplacebo)");
 }
 
 void Image::destroyGpu()
@@ -144,8 +146,8 @@ const struct pl_hook *Image::selectHook(bool source_pq, float upscale_factor,
         hook = fsrcnnx8;
         used = Stats::Upscaler::Fsrcnnx;
     }
-    if (!hook && (mode == 1 || mode == 2))
-        used = Stats::Upscaler::Builtin; // shader indisponible → repli libplacebo
+    if (!hook && (mode == 1 || mode == 2) && upscale_factor > 1.0f)
+        used = Stats::Upscaler::Fallback; // shader indisponible → repli libplacebo, signalé
 
     // Netteté : 100 % = 0 stop (maximum), 0 % = 2 stops.
     const float stops = 2.0f * (1.0f - sharpness() / 100.0f);

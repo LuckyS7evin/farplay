@@ -34,6 +34,8 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - Stats : temps GPU upscaling (passes FSR/FSRCNNX par description de shader), sortie écran (transfert/primaires de la swapchain), pic source, diagnostic HDR en clair, débit demandé / cible PS5 (`farplay_target_bitrate` ajouté dans `ChiakiStreamConnection`, unité supposée kbps à confirmer).
 - Overlay : mises à jour QML rendues avec la prochaine image vidéo pendant un flux (plus de présentation en plus).
 - Non fait : temps GPU du décodage (FFmpeg possède la file Vulkan Video).
+- Test 1 (build 032006e3) : FSR 1 jamais actif — un commentaire contenant « //! » dans le shader le faisait rejeter par libplacebo (repli silencieux). Corrigé, vérifié localement (libplacebo 6.338 + GPU factice : scratchpad/pltest). Règle : jamais « //! » hors directives dans un shader mpv.
+- Mesures : rendu source libplacebo ≈ 1,7–1,9 ms ; FSRCNNX ≈ 3,5 ms dont 1,5 ms d'upscaling (budget réseau 4 ms). Cible PS5 en bit/s : 97 Mbps pour 100 demandés, débit réel 9–11 Mbps médian (pics 45) → l'encodeur VBR de la PS5 n'a pas besoin de plus, le réglage n'est pas le facteur limitant. Pics d'affichage 130–177 ms = arrêts du flux (rafale d'images juste après).
 
 ## Fichiers Farplay
 - `gui/src/farplay/farplay.cmake` : sources, qrc, FARPLAY_GIT_HASH, OUTPUT_NAME.

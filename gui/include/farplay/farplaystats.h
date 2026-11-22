@@ -61,8 +61,9 @@ public:
     static constexpr double kBudgetTotalMs = 8.0;
     static constexpr double kBudgetDecodeMs = 3.0;
     static constexpr double kBudgetUpscaleMs = 1.0;
+    static constexpr double kBudgetUpscaleNetMs = 4.0;
 
-    enum class Upscaler { None, Builtin, Chiaki, Fsr1, Fsrcnnx };
+    enum class Upscaler { None, Builtin, Chiaki, Fsr1, Fsrcnnx, Fallback };
 
     static Stats &instance();
 

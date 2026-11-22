@@ -160,7 +160,7 @@ void Stats::registerQml(QmlBackend *backend, QmlMainWindow *window)
         n.frames_lost = session->GetFramesLost();
         n.rtt_ms = session->GetRttUs() / 1000.0;
         n.requested_bitrate_mbps = session->GetFarplayRequestedBitrate() / 1000.0;
-        n.target_bitrate_mbps = session->GetFarplayTargetBitrate() / 1000.0; // unité supposée kbps, à confirmer
+        n.target_bitrate_mbps = session->GetFarplayTargetBitrate() / 1e6; // bit/s (97087000 pour 100 Mbps demandés)
         return n;
     };
     connect(backend, &QmlBackend::sessionChanged, &s, [&s](StreamSession *session) {
@@ -430,13 +430,17 @@ void Stats::tick()
     case Upscaler::Chiaki: up_name = QStringLiteral("réglage chiaki-ng"); break;
     case Upscaler::Fsr1: up_name = QStringLiteral("FSR 1"); break;
     case Upscaler::Fsrcnnx: up_name = QStringLiteral("FSRCNNX"); break;
+    case Upscaler::Fallback: up_name = QStringLiteral("libplacebo (shader indisponible)"); break;
     }
     s[QStringLiteral("upscaler")] = up_name;
     s[QStringLiteral("upscaleFactor")] = up_factor;
     s[QStringLiteral("outResolution")] = ow > 0 ? QStringLiteral("%1×%2").arg(ow).arg(oh) : QStringLiteral("—");
+    // Budgets du cahier des charges : FSR 1 ≤ 1 ms, réseau léger ≤ 4 ms.
+    const double up_budget = up == Upscaler::Fsrcnnx ? kBudgetUpscaleNetMs : kBudgetUpscaleMs;
+    s[QStringLiteral("upscaleBudget")] = up_budget;
     s[QStringLiteral("gpuUpscaleAvg")] = has_up_shader ? gup.avg : 0.0;
     s[QStringLiteral("gpuUpscaleP99")] = has_up_shader ? gup.p99 : 0.0;
-    s[QStringLiteral("upscaleOverBudget")] = has_up_shader && gup.avg > kBudgetUpscaleMs;
+    s[QStringLiteral("upscaleOverBudget")] = has_up_shader && gup.avg > up_budget;
 
     // --- Phase 2 : diagnostic HDR (source → sortie) ---
     const bool src_known = pf >= 0;
@@ -465,7 +469,7 @@ void Stats::tick()
     }
     s[QStringLiteral("hdrDiag")] = diag;
     s[QStringLiteral("hdrDiagLevel")] = diag_level;
-    s[QStringLiteral("overBudget")] = gpu_total > kBudgetTotalMs || (has_up_shader && gup.avg > kBudgetUpscaleMs);
+    s[QStringLiteral("overBudget")] = gpu_total > kBudgetTotalMs || (has_up_shader && gup.avg > up_budget);
     snap = s;
     emit snapshotChanged();
 

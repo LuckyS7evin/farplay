@@ -108,7 +108,7 @@ Rectangle {
 
             Key { text: "GPU upscaling" }
             Val {
-                text: overlay.s.gpuUpscaleAvg > 0 ? "%1 · p99 %2 / 1 ms".arg(overlay.ms(overlay.s.gpuUpscaleAvg)).arg(overlay.ms(overlay.s.gpuUpscaleP99)) : "—"
+                text: overlay.s.gpuUpscaleAvg > 0 ? "%1 · p99 %2 / %3 ms".arg(overlay.ms(overlay.s.gpuUpscaleAvg)).arg(overlay.ms(overlay.s.gpuUpscaleP99)).arg(overlay.n0(overlay.s.upscaleBudget)) : "—"
                 color: overlay.s.upscaleOverBudget ? overlay.cAlert : overlay.cIvory
             }
 
