@@ -5,23 +5,34 @@ import org.streetpea.chiaking
 
 QtObject {
     readonly property color night: "#0A0A0C"
+    readonly property color side: "#0E0D11"
     readonly property color graphite: "#17151A"
+    readonly property color raised: "#211E25"
     readonly property color panel: Qt.rgba(0x17 / 255, 0x15 / 255, 0x1A / 255, 0.85)
     readonly property color coral: "#FF6B4A"
+    readonly property color coralSoft: Qt.rgba(1, 0.42, 0.29, 0.16)
+    readonly property color coralLine: Qt.rgba(1, 0.42, 0.29, 0.55)
     readonly property color ivory: "#F5F1EE"
     readonly property color dim: "#9C969A"
     readonly property color mint: "#5DD39E"
     readonly property color alert: "#E5484D"
     readonly property color border: Qt.rgba(0xF5 / 255, 0xF1 / 255, 0xEE / 255, 0.15)
+    // 1 px hairlines on glass surfaces (ivory ~10 %)
+    readonly property color line: Qt.rgba(0xF5 / 255, 0xF1 / 255, 0xEE / 255, 0.10)
+    readonly property color glass: Qt.rgba(23 / 255, 21 / 255, 26 / 255, 0.72)
+    readonly property color glassHighlight: Qt.rgba(0xF5 / 255, 0xF1 / 255, 0xEE / 255, 0.07)
 
     readonly property string ui: Farplay.uiFont || "sans-serif"
     readonly property string mono: Farplay.monoFont || "monospace"
+    // "qrc:/farplay/icons/ui/" in production; the screenshot harness overrides it.
+    readonly property string iconBase: Farplay.iconBase || "qrc:/farplay/icons/ui/"
 
-    readonly property int title: 34
-    readonly property int body: 20
-    readonly property int small: 15
+    readonly property int title: 32
+    readonly property int body: 18
+    readonly property int small: 14
     readonly property int unit: 8
     readonly property int radius: 14
+    readonly property int radiusPanel: 22
 
     // No animation during a game session.
     readonly property bool animations: !Chiaki.session

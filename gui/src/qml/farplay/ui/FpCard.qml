@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
 import QtQuick
 
-Rectangle {
+FpGlass {
     id: root
     property int padding: Theme.unit * 3
     default property alias content: inner.data
@@ -9,10 +9,8 @@ Rectangle {
 
     implicitWidth: inner.childrenRect.width + padding * 2
     implicitHeight: inner.childrenRect.height + padding * 2
-    radius: Theme.radius
-    color: Theme.panel
-    border.width: 1
-    border.color: Theme.border
+    radius: 20
+    fillAlpha: 0.8
 
     Item {
         id: inner

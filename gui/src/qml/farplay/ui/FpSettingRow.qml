@@ -7,10 +7,12 @@ FocusScope {
     property string title
     property string description
     property var costs: ({})
+    property bool boxed: false      // own rounded cell (quick panel)
+    property bool divider: false    // 1 px line above (stacked rows in a section card)
     default property alias control: slot.data
 
     Layout.fillWidth: true
-    implicitHeight: Math.max(texts.implicitHeight, slot.childrenRect.height) + Theme.unit * 3
+    implicitHeight: Math.max(texts.implicitHeight, slot.childrenRect.height) + (boxed ? Theme.unit * 3 : Theme.unit * 3)
 
     Component.onCompleted: {
         if (slot.children.length > 0)
@@ -22,33 +24,37 @@ FocusScope {
 
     Rectangle {
         anchors.fill: parent
-        radius: Theme.radius
-        color: Theme.ivory
-        opacity: root.activeFocus ? 0.06 : 0
+        radius: root.boxed ? 18 : Theme.radius
+        color: root.boxed ? Qt.rgba(0.09, 0.083, 0.102, 0.8) : Theme.ivory
+        opacity: root.boxed ? 1 : (root.activeFocus ? 0.05 : 0)
+        border.width: root.boxed ? 1 : 0
+        border.color: Theme.line
         Behavior on opacity { NumberAnimation { duration: Theme.duration } }
     }
     Rectangle {
-        width: 3
-        height: parent.height - Theme.unit * 2
-        anchors.verticalCenter: parent.verticalCenter
-        radius: 1
-        color: Theme.ivory
-        visible: root.activeFocus
+        visible: root.divider
+        x: Theme.unit * 2
+        width: parent.width - Theme.unit * 4
+        height: 1
+        color: Theme.line
     }
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: Theme.unit * 2
-        anchors.rightMargin: Theme.unit * 2
+        anchors.leftMargin: root.boxed ? Theme.unit * 3 : Theme.unit * 2
+        anchors.rightMargin: root.boxed ? Theme.unit * 3 : Theme.unit * 2
         spacing: Theme.unit * 3
         ColumnLayout {
             id: texts
             Layout.fillWidth: true
             Layout.alignment: Qt.AlignVCenter
-            spacing: 4
+            spacing: 3
             Text {
+                Layout.fillWidth: true
                 text: root.title
+                elide: Text.ElideRight
                 font.family: Theme.ui
-                font.pixelSize: Theme.body
+                font.pixelSize: root.boxed ? Theme.body - 1 : Theme.body
+                font.weight: Font.Medium
                 color: Theme.ivory
             }
             Text {
@@ -56,12 +62,13 @@ FocusScope {
                 text: root.description
                 wrapMode: Text.WordWrap
                 font.family: Theme.ui
-                font.pixelSize: Theme.small
+                font.pixelSize: Theme.small - 1
                 color: Theme.dim
                 visible: text !== ""
             }
             FpCostBadges {
                 Layout.fillWidth: true
+                Layout.topMargin: 2
                 costs: root.costs
                 visible: Object.keys(root.costs || {}).length > 0
             }

@@ -1330,17 +1330,56 @@ Item {
     }
     Loader {
         id: farplayQuickLoader
-        anchors { right: parent.right; bottom: parent.bottom; rightMargin: 24; bottomMargin: view.streamMenuHeight + 24 }
+        anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: view.streamMenuHeight + 24 }
+        width: Math.min(1040, view.width - 48)
         z: 200
         active: view.farplayQuickOpen && menuController.open && !view.useSeparateMenuWindow
         source: "qrc:/farplay/ui/FarplayQuickPanel.qml"
-        onLoaded: item.focusFirst()
+        onLoaded: { item.width = Qt.binding(() => farplayQuickLoader.width); item.focusFirst() }
         Connections {
             target: farplayQuickLoader.item
             function onCloseRequested() {
                 view.farplayQuickOpen = false
                 view.grabInput(inlineMenuContent.item ? inlineMenuContent.item.initialFocusItem : null)
             }
+        }
+    }
+
+    // FARPLAY: barre du haut (apparaît quand la souris approche du haut de l'écran)
+    Loader {
+        id: farplayBarLoader
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        height: 96
+        z: 150
+        active: !!Chiaki.session && !sessionLoading && !sessionError
+        source: "qrc:/farplay/ui/FarplayStreamBar.qml"
+        Binding {
+            target: farplayBarLoader.item
+            property: "shown"
+            value: Farplay.topBarActive && !menuController.open
+            when: farplayBarLoader.status === Loader.Ready
+        }
+        Binding {
+            target: farplayBarLoader.item
+            property: "muted"
+            value: !!Chiaki.session && Chiaki.session.muted
+            when: farplayBarLoader.status === Loader.Ready
+        }
+        Connections {
+            target: farplayBarLoader.item
+            function onQuickSettingsRequested() {
+                if (!menuController.open)
+                    menuController.toggle()
+                view.farplayQuickOpen = true
+            }
+            function onMuteToggled() { if (Chiaki.session) Chiaki.session.muted = !Chiaki.session.muted }
+            function onFullscreenToggled() {
+                if (Chiaki.window.visibility === Window.FullScreen)
+                    Chiaki.window.normalTime()
+                else
+                    Chiaki.window.fullscreenTime()
+            }
+            function onQuitRequested() { Chiaki.window.close() }
         }
     }
 

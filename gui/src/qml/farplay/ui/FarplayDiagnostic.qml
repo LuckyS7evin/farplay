@@ -31,8 +31,9 @@ FocusScope {
             text: g.title
             font.family: Theme.ui
             font.pixelSize: Theme.small
+            font.weight: Font.DemiBold
             font.capitalization: Font.AllUppercase
-            font.letterSpacing: 1.5
+            font.letterSpacing: 2
             color: Theme.dim
         }
         FpCard {
@@ -83,6 +84,13 @@ FocusScope {
     Component.onCompleted: backBtn.forceActiveFocus()
 
     Rectangle { anchors.fill: parent; color: Theme.night }
+    Rectangle {
+        anchors.fill: parent
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Qt.rgba(1, 0.42, 0.29, 0.08) }
+            GradientStop { position: 0.45; color: "transparent" }
+        }
+    }
 
     RowLayout {
         id: header
@@ -90,12 +98,13 @@ FocusScope {
         y: Theme.unit * 3
         width: parent.width - Theme.unit * 10
         spacing: Theme.unit * 2
-        FpButton { id: backBtn; text: "‹ Retour"; onClicked: root.showMainView() }
+        FpButton { id: backBtn; iconName: "back"; text: "Retour"; onClicked: root.showMainView() }
         Text {
             Layout.fillWidth: true
             text: "Diagnostic"
             font.family: Theme.ui
             font.pixelSize: Theme.title
+            font.weight: Font.DemiBold
             color: Theme.ivory
         }
     }

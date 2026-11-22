@@ -14,3 +14,10 @@ FarplaySettings 1.0 FarplaySettings.qml
 FarplayDiagnostic 1.0 FarplayDiagnostic.qml
 FarplayWizard 1.0 FarplayWizard.qml
 FarplayQuickPanel 1.0 FarplayQuickPanel.qml
+FpIcon 1.0 FpIcon.qml
+FpGlass 1.0 FpGlass.qml
+FpSegmented 1.0 FpSegmented.qml
+FpSectionCard 1.0 FpSectionCard.qml
+FpSidebarItem 1.0 FpSidebarItem.qml
+FpHints 1.0 FpHints.qml
+FarplayStreamBar 1.0 FarplayStreamBar.qml

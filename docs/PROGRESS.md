@@ -106,3 +106,10 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - Phase 1 : build CI vert, retours de test utilisateur (CSV, capture overlay, latence vs chiaki-ng).
 - Phase 2 : timestamps décodage Vulkan Video, FSR 1, diagnostic HDR, tone mapping SDR.
 - Raccourci manette dédié pour l'overlay (aujourd'hui : bouton dans le menu de flux).
+
+### Nouvelle interface (mix A/B validé)
+- Accueil « Console » (A), Réglages en barre latérale + réglages rapides en verre (B), sliders fins, pastilles segmentées, 80 icônes SVG.
+- Barre du haut en jeu (`FarplayStreamBar`) : apparaît quand la souris approche du haut (capture dans `QmlMainWindow::event`) ; réglages rapides, son, plein écran (`fullscreenTime`/`normalTime` rendus `Q_INVOKABLE`), quitter.
+- Panneau de réglages rapides centré, largeur `min(1040, fenêtre − 48)`.
+- Popup de fin de session supprimée (migration `disconnectAction 2→0`), défilement corrigé en fenêtré.
+- À tester sur le build suivant (un seul build manuel).

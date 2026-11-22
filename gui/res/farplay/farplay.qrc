@@ -19,5 +19,12 @@
     <file alias="ui/FpSlider.qml">../../src/qml/farplay/ui/FpSlider.qml</file>
     <file alias="ui/FpSwitch.qml">../../src/qml/farplay/ui/FpSwitch.qml</file>
     <file alias="ui/Theme.qml">../../src/qml/farplay/ui/Theme.qml</file>
+    <file alias="ui/FpIcon.qml">../../src/qml/farplay/ui/FpIcon.qml</file>
+    <file alias="ui/FpGlass.qml">../../src/qml/farplay/ui/FpGlass.qml</file>
+    <file alias="ui/FpSegmented.qml">../../src/qml/farplay/ui/FpSegmented.qml</file>
+    <file alias="ui/FpSectionCard.qml">../../src/qml/farplay/ui/FpSectionCard.qml</file>
+    <file alias="ui/FpSidebarItem.qml">../../src/qml/farplay/ui/FpSidebarItem.qml</file>
+    <file alias="ui/FpHints.qml">../../src/qml/farplay/ui/FpHints.qml</file>
+    <file alias="ui/FarplayStreamBar.qml">../../src/qml/farplay/ui/FarplayStreamBar.qml</file>
   </qresource>
 </RCC>

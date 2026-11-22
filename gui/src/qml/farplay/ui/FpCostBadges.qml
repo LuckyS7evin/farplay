@@ -5,7 +5,8 @@ Flow {
     id: root
     // e.g. { image: "+", fluidite: "+", latence: "−", gpu: "+" }
     property var costs: ({})
-    spacing: Theme.unit
+    property int fontSize: Theme.small - 2
+    spacing: 6
 
     readonly property var labels: ({ image: "Image", fluidite: "Fluidité", latence: "Latence", gpu: "GPU" })
     readonly property var order: ["image", "fluidite", "latence", "gpu"]
@@ -28,15 +29,16 @@ Flow {
             implicitWidth: chipText.implicitWidth + 16
             implicitHeight: chipText.implicitHeight + 6
             radius: height / 2
-            color: Qt.rgba(tone.r, tone.g, tone.b, 0.15)
+            color: Qt.rgba(tone.r, tone.g, tone.b, 0.12)
             border.width: 1
-            border.color: Qt.rgba(tone.r, tone.g, tone.b, 0.5)
+            border.color: Qt.rgba(tone.r, tone.g, tone.b, 0.4)
             Text {
                 id: chipText
                 anchors.centerIn: parent
                 text: root.labels[modelData] + " " + root.costs[modelData]
                 font.family: Theme.ui
-                font.pixelSize: Theme.small
+                font.pixelSize: root.fontSize
+                font.weight: Font.Medium
                 color: parent.tone
             }
         }

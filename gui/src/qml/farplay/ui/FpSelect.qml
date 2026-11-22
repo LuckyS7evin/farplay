@@ -5,47 +5,47 @@ import QtQuick.Controls.Basic
 ComboBox {
     id: root
     // model: list of strings; currentIndex; activated(int) is inherited from ComboBox.
-    implicitWidth: 280
-    implicitHeight: 44
+    implicitWidth: 260
+    implicitHeight: 42
     activeFocusOnTab: true
     font.family: Theme.ui
-    font.pixelSize: Theme.body
+    font.pixelSize: Theme.body - 1
 
     Keys.onReturnPressed: popup.open()
     Keys.onEnterPressed: popup.open()
-    Keys.onLeftPressed: if (currentIndex > 0) { currentIndex = currentIndex - 1; activated(currentIndex) }
-    Keys.onRightPressed: if (currentIndex < count - 1) { currentIndex = currentIndex + 1; activated(currentIndex) }
+    Keys.onLeftPressed: (e) => { if (currentIndex > 0) { currentIndex = currentIndex - 1; activated(currentIndex) } else e.accepted = false }
+    Keys.onRightPressed: (e) => { if (currentIndex < count - 1) { currentIndex = currentIndex + 1; activated(currentIndex) } else e.accepted = false }
 
     background: Rectangle {
-        radius: Theme.radius
+        radius: height / 2
         color: Theme.graphite
         border.width: 1
-        border.color: Theme.border
+        border.color: Theme.line
         Rectangle {
             anchors.fill: parent
             anchors.margins: -4
-            radius: Theme.radius + 4
+            radius: height / 2
             color: "transparent"
             border.width: 2
-            border.color: Theme.ivory
+            border.color: Theme.coral
             visible: root.activeFocus
         }
     }
     contentItem: Text {
-        leftPadding: 14
-        rightPadding: 36
+        leftPadding: 18
+        rightPadding: 38
         text: root.displayText
         font: root.font
         color: Theme.ivory
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
     }
-    indicator: Text {
+    indicator: FpIcon {
         x: root.width - width - 14
         y: (root.height - height) / 2
-        text: "▾"
-        font.pixelSize: Theme.small
-        color: Theme.dim
+        name: "chevron-down"
+        size: 16
+        opacity: 0.7
     }
     delegate: ItemDelegate {
         required property var modelData
@@ -58,16 +58,16 @@ ComboBox {
             font: root.font
             color: Theme.ivory
             verticalAlignment: Text.AlignVCenter
-            leftPadding: 6
+            leftPadding: 10
         }
         background: Rectangle {
-            radius: Theme.radius - 4
+            radius: height / 2
             color: Theme.ivory
-            opacity: parent.highlighted ? 0.14 : 0
+            opacity: parent.highlighted ? 0.12 : 0
         }
     }
     popup: Popup {
-        y: root.height + 4
+        y: root.height + 6
         width: root.width
         padding: 4
         implicitHeight: contentItem.implicitHeight + 8
@@ -77,11 +77,9 @@ ComboBox {
             model: root.popup.visible ? root.delegateModel : null
             currentIndex: root.highlightedIndex
         }
-        background: Rectangle {
-            radius: Theme.radius
-            color: Theme.graphite
-            border.width: 1
-            border.color: Theme.border
+        background: FpGlass {
+            radius: 20
+            fillAlpha: 0.94
         }
     }
 }

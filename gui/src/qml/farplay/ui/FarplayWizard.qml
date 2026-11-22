@@ -33,10 +33,25 @@ FocusScope {
     }
 
     Rectangle { anchors.fill: parent; color: Theme.night }
+    Rectangle {
+        anchors.fill: parent
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Qt.rgba(1, 0.42, 0.29, 0.10) }
+            GradientStop { position: 0.5; color: "transparent" }
+        }
+    }
+
+    FpGlass {
+        anchors.fill: wizCol
+        anchors.margins: -Theme.unit * 4
+        radius: 32
+        fillAlpha: 0.7
+    }
 
     ColumnLayout {
+        id: wizCol
         anchors.centerIn: parent
-        width: Math.min(parent.width - Theme.unit * 10, 800)
+        width: Math.min(parent.width - Theme.unit * 18, 800)
         spacing: Theme.unit * 3
 
         RowLayout {
@@ -47,19 +62,21 @@ FocusScope {
                 text: page.titles[page.step]
                 font.family: Theme.ui
                 font.pixelSize: Theme.title
+                font.weight: Font.DemiBold
                 color: Theme.ivory
             }
             Row {
                 spacing: Theme.unit
                 Repeater {
                     model: 3
-                    delegate: Text {
+                    delegate: Rectangle {
                         required property int index
-                        text: index + 1
-                        font.family: Theme.mono
-                        font.pixelSize: Theme.body
-                        color: index === page.step ? Theme.ivory : Theme.dim
-                        font.bold: index === page.step
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: index === page.step ? 28 : 10
+                        height: 10
+                        radius: 5
+                        color: index === page.step ? Theme.coral : Theme.line
+                        Behavior on width { NumberAnimation { duration: Theme.duration; easing.type: Theme.easing } }
                     }
                 }
             }
@@ -163,10 +180,11 @@ FocusScope {
             spacing: Theme.unit * 2
             FpButton { text: "Passer"; onClicked: page.done() }
             Item { Layout.fillWidth: true }
-            FpButton { text: "Retour"; visible: page.step > 0; onClicked: page.step-- }
+            FpButton { iconName: "back"; text: "Retour"; visible: page.step > 0; onClicked: page.step-- }
             FpButton {
                 id: nextBtn
                 primary: true
+                implicitHeight: 52
                 text: page.step < 2 ? "Suivant" : "Terminer"
                 onClicked: page.next()
             }

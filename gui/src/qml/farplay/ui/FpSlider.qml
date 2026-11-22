@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
 import QtQuick
 
+// Thin slider: 3 px track, 14 px knob.
 FocusScope {
     id: root
     property real from: 0
@@ -8,12 +9,16 @@ FocusScope {
     property real stepSize: 1
     property real value: 0
     property string unit: ""
+    property bool showValue: true
+    property int valueWidth: 84
     // Emitted with the requested value; the owner updates its model (keeps bindings alive).
     signal moved(real newValue)
 
     activeFocusOnTab: true
     implicitWidth: 340
-    implicitHeight: 36
+    implicitHeight: 32
+    opacity: enabled ? 1 : 0.4
+    onActiveFocusChanged: if (activeFocus) Theme.ensureVisible(root)
 
     readonly property real ratio: to > from ? Math.max(0, Math.min(1, (value - from) / (to - from))) : 0
     function snap(v) {
@@ -25,40 +30,42 @@ FocusScope {
         if (v !== value) moved(v)
     }
 
-    Rectangle {
+    Item {
         id: track
         anchors.left: parent.left
-        anchors.right: label.left
-        anchors.rightMargin: Theme.unit * 2
+        anchors.right: label.visible ? label.left : parent.right
+        anchors.rightMargin: label.visible ? Theme.unit * 2 : 0
         anchors.verticalCenter: parent.verticalCenter
-        height: 6
-        radius: 3
-        color: Theme.graphite
-        border.width: 1
-        border.color: Theme.border
+        height: 14
         Rectangle {
-            width: parent.width * root.ratio
-            height: parent.height
-            radius: 3
-            color: Theme.ivory
-            opacity: 0.55
+            id: rail
+            width: parent.width
+            height: 3
+            radius: 1.5
+            anchors.verticalCenter: parent.verticalCenter
+            color: Qt.rgba(0.96, 0.945, 0.933, 0.14)
+            Rectangle {
+                width: handle.x + handle.width / 2
+                height: parent.height
+                radius: 1.5
+                color: Theme.coral
+            }
         }
         Rectangle {
+            id: handle
             x: (parent.width - width) * root.ratio
             anchors.verticalCenter: parent.verticalCenter
-            width: 20
-            height: 20
-            radius: 10
+            width: 14
+            height: 14
+            radius: 7
             color: Theme.ivory
-            border.width: root.activeFocus ? 4 : 0
-            border.color: Theme.night
             Rectangle {
                 anchors.fill: parent
-                anchors.margins: -4
+                anchors.margins: -5
                 radius: width / 2
                 color: "transparent"
                 border.width: 2
-                border.color: Theme.ivory
+                border.color: Theme.coral
                 visible: root.activeFocus
             }
         }
@@ -68,7 +75,8 @@ FocusScope {
             anchors.bottomMargin: -12
             function set(mx) {
                 root.forceActiveFocus()
-                var v = root.snap(root.from + (root.to - root.from) * Math.max(0, Math.min(1, mx / width)))
+                var w = Math.max(1, width - handle.width)
+                var v = root.snap(root.from + (root.to - root.from) * Math.max(0, Math.min(1, (mx - handle.width / 2) / w)))
                 if (v !== root.value) root.moved(v)
             }
             onPressed: (m) => set(m.x)
@@ -77,15 +85,16 @@ FocusScope {
     }
     Text {
         id: label
+        visible: root.showValue
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        width: 96
+        width: root.valueWidth
         horizontalAlignment: Text.AlignRight
         text: Math.round(root.value * 100) / 100 + (root.unit ? " " + root.unit : "")
         font.family: Theme.mono
-        font.pixelSize: Theme.body
+        font.pixelSize: Theme.small + 1
         color: Theme.ivory
     }
-    Keys.onLeftPressed: step(-1)
-    Keys.onRightPressed: step(1)
+    Keys.onLeftPressed: (e) => { if (value > from) step(-1); else e.accepted = false }
+    Keys.onRightPressed: (e) => { if (value < to) step(1); else e.accepted = false }
 }

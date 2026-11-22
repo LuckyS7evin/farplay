@@ -59,6 +59,7 @@ class Stats : public QObject
     // Barre du haut en jeu : la souris est près du haut de l'écran pendant une session
     Q_PROPERTY(bool topBarActive READ topBarActive NOTIFY topBarActiveChanged)
     Q_PROPERTY(QString buildId READ buildId CONSTANT)
+    Q_PROPERTY(QString iconBase READ iconBase CONSTANT)
 
 public:
     // Budgets du cahier des charges (ms GPU).
@@ -111,6 +112,7 @@ public:
     void setTopBarActive(bool v) { if (v != top_bar_active) { top_bar_active = v; emit topBarActiveChanged(); } }
     Q_INVOKABLE void setFirstLaunchDone();
     QString buildId() const;
+    QString iconBase() const { return QStringLiteral("qrc:/farplay/icons/ui/"); }
 
 signals:
     void overlayLevelChanged();
