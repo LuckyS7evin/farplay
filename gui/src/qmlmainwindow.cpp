@@ -5175,6 +5175,11 @@ renderer_backend_ready:
     backend = new QmlBackend(settings, this);
     stats_overlay_widget = new StatsOverlayWidget(this, backend);
     connect(backend, &QmlBackend::sessionChanged, this, [this, exit_app_on_stream_exit](StreamSession *s) {
+        if (farplay_top_grab) { // FARPLAY: barre du haut relâchée en changeant de session
+            farplay_top_grab = false;
+            releaseInput();
+            farplay::Stats::instance().setTopBarActive(false);
+        }
         const bool preserve_startup_warmup = s && startup_warmup_preserve_next_session_change;
         startup_warmup_preserve_next_session_change = false;
         session = s;
@@ -7796,6 +7801,27 @@ bool QmlMainWindow::event(QEvent *event)
     case QEvent::MouseButtonRelease:
         if (static_cast<QMouseEvent*>(event)->source() != Qt::MouseEventNotSynthesized)
             return true;
+        // FARPLAY: barre du haut en jeu. La souris en haut de l'écran est captée par
+        // l'interface (curseur visible, la PS5 ne la reçoit pas) ; elle est rendue en
+        // redescendant sous la barre.
+        if (event->type() == QEvent::MouseMove) {
+            const qreal farplay_y = static_cast<QMouseEvent*>(event)->position().y();
+            if (!session || !has_video) {
+                if (farplay_top_grab) {
+                    farplay_top_grab = false;
+                    releaseInput();
+                    farplay::Stats::instance().setTopBarActive(false);
+                }
+            } else if (!farplay_top_grab && !grab_input && farplay_y < 48.0) {
+                farplay_top_grab = true;
+                grabInput();
+                farplay::Stats::instance().setTopBarActive(true);
+            } else if (farplay_top_grab && farplay_y > 140.0) {
+                farplay_top_grab = false;
+                releaseInput();
+                farplay::Stats::instance().setTopBarActive(false);
+            }
+        }
         if (session && !grab_input) {
             if (event->type() == QEvent::MouseMove)
                 session->HandleMouseMoveEvent(static_cast<QMouseEvent*>(event), width(), height());

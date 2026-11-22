@@ -56,6 +56,8 @@ class Stats : public QObject
     Q_PROPERTY(QString monoFont READ monoFont CONSTANT)
     Q_PROPERTY(QString uiFont READ uiFont CONSTANT)
     Q_PROPERTY(bool firstLaunch READ firstLaunch NOTIFY firstLaunchChanged)
+    // Barre du haut en jeu : la souris est près du haut de l'écran pendant une session
+    Q_PROPERTY(bool topBarActive READ topBarActive NOTIFY topBarActiveChanged)
     Q_PROPERTY(QString buildId READ buildId CONSTANT)
 
 public:
@@ -105,6 +107,8 @@ public:
     QString monoFont() const { return mono_font; }
     QString uiFont() const { return ui_font; }
     bool firstLaunch() const;
+    bool topBarActive() const { return top_bar_active; }
+    void setTopBarActive(bool v) { if (v != top_bar_active) { top_bar_active = v; emit topBarActiveChanged(); } }
     Q_INVOKABLE void setFirstLaunchDone();
     QString buildId() const;
 
@@ -114,6 +118,7 @@ signals:
     void csvLoggingChanged();
     void snapshotChanged();
     void firstLaunchChanged();
+    void topBarActiveChanged();
 
 private:
     explicit Stats(QObject *parent = nullptr);
@@ -168,6 +173,7 @@ private:
     QTimer timer;
     QString mono_font;
     QString ui_font;
+    bool top_bar_active = false;
     std::function<NetSample()> net;
     int64_t session_start_us = 0;
 };
