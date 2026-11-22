@@ -15,6 +15,7 @@
     <file alias="ui/FpCard.qml">../../src/qml/farplay/ui/FpCard.qml</file>
     <file alias="ui/FpCostBadges.qml">../../src/qml/farplay/ui/FpCostBadges.qml</file>
     <file alias="ui/FpLogo.qml">../../src/qml/farplay/ui/FpLogo.qml</file>
+    <file alias="ui/FarplaySplash.qml">../../src/qml/farplay/ui/FarplaySplash.qml</file>
     <file alias="ui/FpSelect.qml">../../src/qml/farplay/ui/FpSelect.qml</file>
     <file alias="ui/FpSettingRow.qml">../../src/qml/farplay/ui/FpSettingRow.qml</file>
     <file alias="ui/FpSlider.qml">../../src/qml/farplay/ui/FpSlider.qml</file>

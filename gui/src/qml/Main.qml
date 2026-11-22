@@ -120,6 +120,25 @@ Item {
         stack.push(url, props || {});
     }
 
+    // FARPLAY: animation de démarrage (une seule fois, ignorable) ; l'accueil se charge dessous
+    Loader {
+        id: fpSplash
+        anchors.fill: parent
+        z: 2000
+        active: !Chiaki.session && !Chiaki.autoConnect
+        focus: active
+        source: "qrc:/farplay/ui/FarplaySplash.qml"
+        Connections {
+            target: fpSplash.item
+            function onFinished() {
+                const refocus = fpSplash.item.activeFocus
+                fpSplash.active = false
+                fpSplash.source = ""
+                if (refocus && stack.currentItem) stack.currentItem.forceActiveFocus()
+            }
+        }
+    }
+
     // FARPLAY: réglages Farplay par-dessus la partie en cours (Échap / ○ pour revenir au jeu)
     function openSettingsOverlay(section) {
         if (settingsOverlay.active)

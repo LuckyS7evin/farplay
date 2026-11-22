@@ -15,7 +15,7 @@ Item {
     readonly property bool canPlay: currentHost !== null && currentHost.registered === true
     readonly property real sideMargin: Math.max(32, Math.min(96, width * 0.05))
     readonly property bool wide: width >= 1100
-    readonly property Item chipTarget: chipRep.count > 0 ? (chipRep.itemAt(Math.max(0, FarplayProfiles.names.indexOf(FarplayProfiles.current))) || playBtn) : playBtn
+    readonly property Item chipTarget: chipRep.count > 0 ? chipRep.itemAt(Math.max(0, FarplayProfiles.names.indexOf(FarplayProfiles.current))) : null
 
     function play() {
         if (!canPlay) return
@@ -24,9 +24,7 @@ Item {
     }
 
     Component.onCompleted: {
-        if (playBtn.enabled) playBtn.forceActiveFocus()
-        else if (hosts.length > 0) list.forceActiveFocus()
-        else list.forceActiveFocus()
+        list.forceActiveFocus()
         askPsn.start()
     }
     // Back from a sub-screen (register, settings...): give focus back to the page.
@@ -38,7 +36,7 @@ Item {
             const w = page.Window.window
             let p = w ? w.activeFocusItem : null
             while (p && p !== page) p = p.parent
-            if (!p) { if (playBtn.enabled) playBtn.forceActiveFocus(); else list.forceActiveFocus() }
+            if (!p) list.forceActiveFocus()
         }
     }
     // First launch: offer the PSN connection (remote play), like chiaki-ng's main view did.
@@ -304,11 +302,55 @@ Item {
                                 wrapMode: Text.WordWrap
                                 text: !tile.host ? ""
                                     : !tile.host.registered ? "Appairez la console pour jouer"
-                                    : tile.host.state === "ready" ? "Appuyez sur ✕ pour lancer"
                                     : tile.host.state === "standby" ? "Réveillez la console pour jouer" : ""
                                 font.family: Theme.ui
                                 font.pixelSize: Theme.small
                                 color: Theme.dim
+                            }
+                            // Play pill: coral on the selected ready console (the single
+                            // primary action), discreet outline on the other ready ones.
+                            Rectangle {
+                                id: playPill
+                                visible: tile.ready && tile.host.registered === true
+                                Layout.alignment: Qt.AlignLeft
+                                Layout.preferredHeight: 40
+                                Layout.preferredWidth: pillRow.implicitWidth + 40
+                                radius: height / 2
+                                color: tile.selected ? Theme.coral : "transparent"
+                                border.width: 1
+                                border.color: tile.selected ? Theme.coral : Theme.line
+                                Behavior on color { ColorAnimation { duration: Theme.duration } }
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: parent.radius
+                                    color: tile.selected ? Theme.night : Theme.ivory
+                                    opacity: pillMouse.pressed ? 0.16 : (pillMouse.containsMouse ? 0.07 : 0)
+                                }
+                                Row {
+                                    id: pillRow
+                                    anchors.centerIn: parent
+                                    spacing: 8
+                                    FpIcon {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        name: "play"
+                                        size: 16
+                                        tone: tile.selected ? "night" : "ivory"
+                                    }
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "Jouer"
+                                        font.family: Theme.ui
+                                        font.pixelSize: Theme.small + 2
+                                        font.weight: tile.selected ? Font.DemiBold : Font.Medium
+                                        color: tile.selected ? Theme.night : Theme.ivory
+                                    }
+                                }
+                                MouseArea {
+                                    id: pillMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: { list.currentIndex = tile.index; list.forceActiveFocus(); page.play() }
+                                }
                             }
                             FpButton {
                                 id: actionBtn
@@ -354,11 +396,10 @@ Item {
                 }
             }
 
-            // Profiles, then Play (same left edge)
+            // Profiles
             ColumnLayout {
                 Layout.fillWidth: true
-                Layout.topMargin: Theme.unit
-                spacing: Theme.unit * 4
+                Layout.topMargin: Theme.unit * 2
 
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -394,7 +435,6 @@ Item {
                                 Keys.onLeftPressed: (e) => { var c = chipRep.itemAt(index - 1); if (c) c.forceActiveFocus(); else e.accepted = false }
                                 Keys.onRightPressed: (e) => { var c = chipRep.itemAt(index + 1); if (c) c.forceActiveFocus(); else e.accepted = false }
                                 Keys.onUpPressed: list.forceActiveFocus()
-                                Keys.onDownPressed: playBtn.forceActiveFocus()
                                 Rectangle {
                                     anchors.fill: parent
                                     radius: height / 2
@@ -434,24 +474,6 @@ Item {
                                 }
                             }
                         }
-                    }
-                }
-
-                FpButton {
-                    id: playBtn
-                    Layout.alignment: Qt.AlignLeft
-                    Layout.preferredWidth: page.wide ? 400 : 320
-                    Layout.preferredHeight: 88
-                    primary: true
-                    iconName: "play"
-                    iconSize: 32
-                    fontSize: 28
-                    text: "Jouer"
-                    enabled: page.canPlay
-                    onClicked: page.play()
-                    Keys.onUpPressed: {
-                        var c = chipRep.count > 0 ? chipRep.itemAt(Math.max(0, FarplayProfiles.names.indexOf(FarplayProfiles.current))) : null
-                        if (c) c.forceActiveFocus(); else list.forceActiveFocus()
                     }
                 }
             }

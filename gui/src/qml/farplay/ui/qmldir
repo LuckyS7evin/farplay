@@ -2,6 +2,7 @@ module farplay.ui
 singleton Theme 1.0 Theme.qml
 singleton FarplayProfiles 1.0 FarplayProfiles.qml
 FpLogo 1.0 FpLogo.qml
+FarplaySplash 1.0 FarplaySplash.qml
 FpButton 1.0 FpButton.qml
 FpCard 1.0 FpCard.qml
 FpCostBadges 1.0 FpCostBadges.qml
