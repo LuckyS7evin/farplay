@@ -1,0 +1,15 @@
+module farplay.ui
+singleton Theme 1.0 Theme.qml
+singleton FarplayProfiles 1.0 FarplayProfiles.qml
+FpLogo 1.0 FpLogo.qml
+FpButton 1.0 FpButton.qml
+FpCard 1.0 FpCard.qml
+FpCostBadges 1.0 FpCostBadges.qml
+FpSettingRow 1.0 FpSettingRow.qml
+FpSwitch 1.0 FpSwitch.qml
+FpSelect 1.0 FpSelect.qml
+FpSlider 1.0 FpSlider.qml
+FarplayHome 1.0 FarplayHome.qml
+FarplaySettings 1.0 FarplaySettings.qml
+FarplayDiagnostic 1.0 FarplayDiagnostic.qml
+FarplayWizard 1.0 FarplayWizard.qml

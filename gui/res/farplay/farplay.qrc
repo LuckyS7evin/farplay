@@ -3,5 +3,20 @@
     <file>fonts/JetBrainsMono-Regular.ttf</file>
     <file>shaders/FSR.glsl</file>
     <file alias="StatsOverlay.qml">../../src/qml/farplay/StatsOverlay.qml</file>
+    <file alias="ui/qmldir">../../src/qml/farplay/ui/qmldir</file>
+    <file alias="ui/FarplayDiagnostic.qml">../../src/qml/farplay/ui/FarplayDiagnostic.qml</file>
+    <file alias="ui/FarplayHome.qml">../../src/qml/farplay/ui/FarplayHome.qml</file>
+    <file alias="ui/FarplayProfiles.qml">../../src/qml/farplay/ui/FarplayProfiles.qml</file>
+    <file alias="ui/FarplaySettings.qml">../../src/qml/farplay/ui/FarplaySettings.qml</file>
+    <file alias="ui/FarplayWizard.qml">../../src/qml/farplay/ui/FarplayWizard.qml</file>
+    <file alias="ui/FpButton.qml">../../src/qml/farplay/ui/FpButton.qml</file>
+    <file alias="ui/FpCard.qml">../../src/qml/farplay/ui/FpCard.qml</file>
+    <file alias="ui/FpCostBadges.qml">../../src/qml/farplay/ui/FpCostBadges.qml</file>
+    <file alias="ui/FpLogo.qml">../../src/qml/farplay/ui/FpLogo.qml</file>
+    <file alias="ui/FpSelect.qml">../../src/qml/farplay/ui/FpSelect.qml</file>
+    <file alias="ui/FpSettingRow.qml">../../src/qml/farplay/ui/FpSettingRow.qml</file>
+    <file alias="ui/FpSlider.qml">../../src/qml/farplay/ui/FpSlider.qml</file>
+    <file alias="ui/FpSwitch.qml">../../src/qml/farplay/ui/FpSwitch.qml</file>
+    <file alias="ui/Theme.qml">../../src/qml/farplay/ui/Theme.qml</file>
   </qresource>
 </RCC>

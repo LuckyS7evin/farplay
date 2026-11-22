@@ -48,6 +48,13 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - `farplay::FrameGen` (`farplayframegen.*`, QML `FarplayFrameGen`) : mode {coupée, interne (défaut), AFMF}, multiplicateur {x2 défaut, x3, x4, écran}, protection HUD, F4 = suspendre. Force le frame mixer (rendu à la cadence écran), retarde l'horloge pl_queue d'une image source + 3 ms (latence ajoutée affichée), file ≥ 3 images. Incompatible avec « Direct Frame Mapping » (signalé).
 - Banc de test : `gui/src/farplay/tests/fg_test.cpp` + workflow `farplay-fgtest.yml` (lavapipe). Résultats 1280×720 : gain +8 à +11 dB sur le fondu (4 à 120 px/image), HUD intact (73 dB). Limite connue : fine bande autour d'un HUD fixe sur fond mobile (zones découvertes).
 
+## Phase 4 (partie interface, avant le test de la phase 3)
+- Accord utilisateur : interface/profils/assistant/diagnostic d'abord ; F7, éditeur de masque HUD, réseau SR après le test de la phase 3.
+- QML écrit par un sous-agent (Sonnet) puis relu : `gui/src/qml/farplay/ui/` (qmldir, Theme, FarplayProfiles, composants Fp*, écrans FarplayHome/Settings/Diagnostic/Wizard), enregistré dans `farplay.qrc` (préfixe /farplay/ui). Correctif de relecture : fps PS5 = valeurs 30/60 (pas 0/1).
+- Main.qml : vue principale = accueil Farplay (assistant au premier lancement, drapeau QSettings ui/wizard_done), vue chiaki-ng d'origine accessible (`root.showChiakiMainView()`), `root.showFarplayView(url)`.
+- Identité : police Sora (OFL) + JetBrains Mono, icône `res/farplay/icons/farplay.{svg,ico}`, métadonnées exe Farplay, icône de fenêtre.
+- Test réseau intégré non fait (aucune base dans chiaki-ng) : l'assistant renvoie à la mesure pendant la première partie (overlay/diagnostic).
+
 ## Fichiers Farplay
 - `gui/src/farplay/farplay.cmake` : sources, qrc, FARPLAY_GIT_HASH, OUTPUT_NAME.
 - `gui/{include,src}/farplay/farplaystats.*` : `farplay::Stats` (singleton QML `Farplay`, compteurs, timings GPU, CSV `Documents/Farplay/stats-*.csv`).

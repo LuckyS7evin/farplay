@@ -111,6 +111,20 @@ Item {
         stack.pop();
     }
 
+    // FARPLAY: navigation des écrans Farplay
+    function showFarplayView(url) {
+        stack.push(url);
+    }
+
+    function showChiakiMainView() {
+        stack.push(chiakiMainViewComponent);
+    }
+
+    function farplayWizardDone() {
+        Farplay.setFirstLaunchDone();
+        stack.replace(stack.get(0), mainViewComponent);
+    }
+
     function showMainView() {
         if(displaySettingsRect.opacity) {
             displaySettingsRect.opacity = 0.0;
@@ -562,8 +576,17 @@ Item {
         }
     }
 
+    // FARPLAY: accueil Farplay (assistant au premier lancement) ; la vue d'origine reste accessible
     Component {
         id: mainViewComponent
+        Loader {
+            focus: true
+            source: Farplay.firstLaunch ? "qrc:/farplay/ui/FarplayWizard.qml" : "qrc:/farplay/ui/FarplayHome.qml"
+        }
+    }
+
+    Component {
+        id: chiakiMainViewComponent
         MainView { }
     }
 
