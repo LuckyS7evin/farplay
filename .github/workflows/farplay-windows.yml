@@ -104,7 +104,7 @@ jobs:
 
       - name: Cache FFmpeg/SDL2/SPIRV-Cross/shaderc/libplacebo deps
         id: deps-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ${{ env.dep_folder }}
           key: deps-win64-${{ env.cache_rev }}-${{ env.ffmpeg_asset }}-sdl2c${{ env.sdl2_compat_tag }}-spirv${{ env.spirv_cross_ref }}-vk${{ env.vulkan_sdk_version }}-plbo${{ env.libplacebo_tag }}-vcpkg${{ env.vcpkg_baseline }}
@@ -169,7 +169,7 @@ jobs:
       # restore/save séparés : le cache est sauvé dès qu'il est produit, même si la suite échoue.
       - name: Cache vcpkg binary archives
         id: vcpkg-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: vcpkg-bin2-${{ env.triplet }}-${{ env.vcpkg_baseline }}-${{ hashFiles('vcpkg.json') }}
@@ -190,7 +190,7 @@ jobs:
 
       - name: Save vcpkg binary archives
         if: always() && steps.vcpkg-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
           key: vcpkg-bin2-${{ env.triplet }}-${{ env.vcpkg_baseline }}-${{ hashFiles('vcpkg.json') }}
@@ -217,7 +217,7 @@ jobs:
 
       - name: Save deps cache
         if: steps.deps-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ${{ env.dep_folder }}
           key: deps-win64-${{ env.cache_rev }}-${{ env.ffmpeg_asset }}-sdl2c${{ env.sdl2_compat_tag }}-spirv${{ env.spirv_cross_ref }}-vk${{ env.vulkan_sdk_version }}-plbo${{ env.libplacebo_tag }}-vcpkg${{ env.vcpkg_baseline }}
