@@ -37,6 +37,9 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - Test 1 (build 032006e3) : FSR 1 jamais actif — un commentaire contenant « //! » dans le shader le faisait rejeter par libplacebo (repli silencieux). Corrigé, vérifié localement (libplacebo 6.338 + GPU factice : scratchpad/pltest). Règle : jamais « //! » hors directives dans un shader mpv.
 - Mesures : rendu source libplacebo ≈ 1,7–1,9 ms ; FSRCNNX ≈ 3,5 ms dont 1,5 ms d'upscaling (budget réseau 4 ms). Cible PS5 en bit/s : 97 Mbps pour 100 demandés, débit réel 9–11 Mbps médian (pics 45) → l'encodeur VBR de la PS5 n'a pas besoin de plus, le réglage n'est pas le facteur limitant. Pics d'affichage 130–177 ms = arrêts du flux (rafale d'images juste après).
 
+- Test 2 (build 884627af) : FSR 1 actif, upscaling 0,42–0,56 ms (p99 0,78) ✔ budget 1 ms ; rendu source total 2,3–3,8 ms ✔ 8 ms ; HDR de bout en bout ✔ ; cible PS5 confirmée 92–97 Mbps pour 100 demandés (réel 3–8 Mbps sur scène calme). Test SDR→HDR abandonné à la demande de l'utilisateur (non validé).
+- Phase 2 en attente du verdict visuel de l'utilisateur (netteté/halos) puis feu vert phase 3.
+
 ## Fichiers Farplay
 - `gui/src/farplay/farplay.cmake` : sources, qrc, FARPLAY_GIT_HASH, OUTPUT_NAME.
 - `gui/{include,src}/farplay/farplaystats.*` : `farplay::Stats` (singleton QML `Farplay`, compteurs, timings GPU, CSV `Documents/Farplay/stats-*.csv`).
