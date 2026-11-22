@@ -11,6 +11,12 @@ on:
 permissions:
   contents: read
 
+# Un seul build par branche : un nouveau push annule le précédent (sinon deux jobs
+# se disputent la création du cache vcpkg et aucun ne le sauve).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-win_x64:
     name: Build Farplay win_x64 (VC)
