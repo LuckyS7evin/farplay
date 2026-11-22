@@ -4,7 +4,12 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 
 ## État
 - Phase 0 : manuelle (utilisateur) — résultats AFMF / HDR en attente.
-- Phase 1 : build CI vert (run 8, artefact farplay-win64-960422d7) → en attente des tests utilisateur.
+- Phase 1 : testée par l'utilisateur (build 960422d7) — OK, en attente du feu vert phase 2.
+  - Vulkan Video zero-copy ✔, HDR10 PQ BT.2020 reçu ✔, GPU rendu source ~1,9 ms (p99 ~2,9) ✔, ressenti identique à chiaki-ng (latence non mesurée).
+  - Immediate : affichage régulier (p99 35 ms) ; irrégularités venant du flux (p99 intervalle source 45–70 ms).
+  - Mailbox : trous d'affichage 50–108 ms alors que le flux est régulier (p99 ~36 ms) → mailbox jette des images à 30 fps. Laisser FIFO/VRR par défaut ; traiter avec le pacing en phase 3.
+  - Débit mesuré bas (médiane 8–19 Mbps) → vérifier le réglage de bitrate.
+  - fps affichés parfois > fps reçus (+0,5–1) : rendus supplémentaires dus aux mises à jour QML de l'overlay (2 Hz).
 
 ## Décisions
 - 2026-11-21 : base = chiaki-ng 1.9.9 (streetpea/chiaki-ng, branche `main`), remote `upstream`.
