@@ -326,17 +326,14 @@ Item {
                 }
             }
 
-            // Profiles + Play
-            GridLayout {
+            // Profiles, then Play (same left edge)
+            ColumnLayout {
                 Layout.fillWidth: true
                 Layout.topMargin: Theme.unit
-                columns: page.wide ? 2 : 1
-                columnSpacing: Theme.unit * 6
-                rowSpacing: Theme.unit * 3
+                spacing: Theme.unit * 4
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignBottom
                     spacing: Theme.unit * 2
                     visible: FarplayProfiles.names.length > 0
                     Text {
@@ -367,12 +364,7 @@ Item {
                                 Keys.onEnterPressed: FarplayProfiles.apply(modelData)
                                 Keys.onSpacePressed: FarplayProfiles.apply(modelData)
                                 Keys.onLeftPressed: (e) => { var c = chipRep.itemAt(index - 1); if (c) c.forceActiveFocus(); else e.accepted = false }
-                                Keys.onRightPressed: (e) => {
-                                    var c = chipRep.itemAt(index + 1)
-                                    if (c) c.forceActiveFocus()
-                                    else if (playBtn.enabled && page.wide) playBtn.forceActiveFocus()
-                                    else e.accepted = false
-                                }
+                                Keys.onRightPressed: (e) => { var c = chipRep.itemAt(index + 1); if (c) c.forceActiveFocus(); else e.accepted = false }
                                 Keys.onUpPressed: list.forceActiveFocus()
                                 Keys.onDownPressed: playBtn.forceActiveFocus()
                                 Rectangle {
@@ -419,7 +411,7 @@ Item {
 
                 FpButton {
                     id: playBtn
-                    Layout.alignment: page.wide ? (Qt.AlignRight | Qt.AlignBottom) : Qt.AlignLeft
+                    Layout.alignment: Qt.AlignLeft
                     Layout.preferredWidth: page.wide ? 400 : 320
                     Layout.preferredHeight: 88
                     primary: true
@@ -429,38 +421,11 @@ Item {
                     text: "Jouer"
                     enabled: page.canPlay
                     onClicked: page.play()
-                    KeyNavigation.up: list
-                    KeyNavigation.down: advBtn
-                    Keys.onLeftPressed: (e) => {
-                        var c = chipRep.count > 0 ? chipRep.itemAt(chipRep.count - 1) : null
-                        if (c && page.wide) c.forceActiveFocus(); else e.accepted = false
+                    Keys.onUpPressed: {
+                        var c = chipRep.count > 0 ? chipRep.itemAt(Math.max(0, FarplayProfiles.names.indexOf(FarplayProfiles.current))) : null
+                        if (c) c.forceActiveFocus(); else list.forceActiveFocus()
                     }
                 }
-            }
-
-            // Secondary links
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: Theme.unit
-                FpButton {
-                    id: advBtn
-                    flat: true
-                    fontSize: Theme.small + 1
-                    text: "Réglages chiaki-ng"
-                    onClicked: root.showSettingsDialog()
-                    KeyNavigation.up: playBtn
-                    KeyNavigation.right: classicBtn
-                }
-                FpButton {
-                    id: classicBtn
-                    flat: true
-                    fontSize: Theme.small + 1
-                    text: "Vue chiaki-ng"
-                    onClicked: root.showChiakiMainView()
-                    KeyNavigation.up: playBtn
-                    KeyNavigation.left: advBtn
-                }
-                Item { Layout.fillWidth: true }
             }
         }
     }

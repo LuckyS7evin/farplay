@@ -8,16 +8,43 @@ import org.streetpea.chiaking
 FpGlass {
     id: panel
     signal closeRequested()
+    signal quitRequested()
+    signal displaySettingsRequested()
     readonly property var s: Farplay.snapshot || ({})
     readonly property real fpsIn: s.fpsIn || 0
     readonly property real fpsShown: (s.fpsDistinct || 0) > 0 ? s.fpsDistinct : (s.fpsOut || 0)
 
+    // Available height (set by the host); 0 = unbounded. The settings grid scrolls when needed.
+    property real maxHeight: 0
+    readonly property int cols: width < 760 ? 1 : 2
+    // Video modes (ChiakiWindow.VideoMode): Normal 0, Stretch 1, Zoom 2
+    readonly property int modeNormal: 0
+    readonly property int modeStretch: 1
+    readonly property int modeZoom: 2
+    readonly property var navItems: [fgSwitch, multSeg, upSeg, sharpSlider, overlaySeg, pacingSwitch, volSlider, micSwitch, modeSeg, zoomSlider]
+
     width: 1040   // integrator may override (e.g. Math.min(1040, window.width - 48))
-    implicitHeight: col.implicitHeight + 56
+    implicitHeight: Math.min(col.implicitHeight, maxHeight > 0 ? maxHeight - 56 : col.implicitHeight) + 56
+    clip: true
     radius: 28
     fillAlpha: 0.8
 
     function focusFirst() { fgSwitch.forceActiveFocus() }
+
+    // Grid navigation (up/down by row) over the visible controls; past the end -> footer.
+    function nav(item, dir) {
+        var vis = navItems.filter(function(x) { return x.visible })
+        var i = vis.indexOf(item)
+        if (i < 0) return
+        var j = i + dir * cols
+        if (j < 0) return
+        if (j >= vis.length) {
+            if (dir > 0) displayBtn.forceActiveFocus()
+            return
+        }
+        vis[j].forceActiveFocus()
+    }
+    function toFooter() { displayBtn.forceActiveFocus() }
 
     Keys.onEscapePressed: panel.closeRequested()
 
@@ -44,6 +71,7 @@ FpGlass {
             // Lecture en direct
             Row {
                 spacing: 26
+                visible: panel.width >= 600
                 Layout.alignment: Qt.AlignVCenter
                 Row {
                     spacing: 7
@@ -64,9 +92,19 @@ FpGlass {
         }
         Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.line }
 
-        GridLayout {
+        Flickable {
+            id: flick
             Layout.fillWidth: true
-            columns: 2
+            Layout.preferredHeight: Math.min(grid.implicitHeight, panel.maxHeight > 0 ? Math.max(160, panel.maxHeight - 290) : grid.implicitHeight)
+            contentWidth: width
+            contentHeight: grid.implicitHeight
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+
+        GridLayout {
+            id: grid
+            width: flick.width
+            columns: panel.cols
             columnSpacing: 16
             rowSpacing: 14
 
@@ -81,8 +119,9 @@ FpGlass {
                     id: fgSwitch
                     checked: FarplayFrameGen.mode !== 0
                     onToggled: (c) => FarplayFrameGen.mode = c ? 1 : 0
-                    KeyNavigation.down: upSeg
-                    KeyNavigation.right: multSeg
+                    Keys.onUpPressed: panel.nav(fgSwitch, -1)
+                    Keys.onDownPressed: panel.nav(fgSwitch, 1)
+                    KeyNavigation.right: panel.cols === 2 ? multSeg : null
                 }
             }
             FpSettingRow {
@@ -98,8 +137,9 @@ FpGlass {
                     minSegWidth: 50
                     currentIndex: Math.max(0, values.indexOf(FarplayFrameGen.multiplier))
                     onActivated: (i) => FarplayFrameGen.multiplier = values[i]
-                    KeyNavigation.down: sharpSlider
-                    KeyNavigation.left: fgSwitch
+                    Keys.onUpPressed: panel.nav(multSeg, -1)
+                    Keys.onDownPressed: panel.nav(multSeg, 1)
+                    KeyNavigation.left: panel.cols === 2 ? fgSwitch : null
                 }
             }
             FpSettingRow {
@@ -113,9 +153,9 @@ FpGlass {
                     minSegWidth: 50
                     currentIndex: FarplayImage.upscaler - 1
                     onActivated: (i) => FarplayImage.upscaler = i + 1
-                    KeyNavigation.up: fgSwitch
-                    KeyNavigation.down: overlaySeg
-                    KeyNavigation.right: sharpSlider
+                    Keys.onUpPressed: panel.nav(upSeg, -1)
+                    Keys.onDownPressed: panel.nav(upSeg, 1)
+                    KeyNavigation.right: panel.cols === 2 ? sharpSlider : null
                 }
             }
             FpSettingRow {
@@ -131,9 +171,9 @@ FpGlass {
                     unit: "%"
                     value: FarplayImage.sharpness
                     onMoved: (v) => FarplayImage.sharpness = v
-                    KeyNavigation.up: multSeg
-                    KeyNavigation.down: pacingSwitch
-                    KeyNavigation.left: upSeg
+                    Keys.onUpPressed: panel.nav(sharpSlider, -1)
+                    Keys.onDownPressed: panel.nav(sharpSlider, 1)
+                    KeyNavigation.left: panel.cols === 2 ? upSeg : null
                 }
             }
             FpSettingRow {
@@ -147,8 +187,9 @@ FpGlass {
                     minSegWidth: 58
                     currentIndex: Farplay.overlayLevel
                     onActivated: (i) => Farplay.overlayLevel = i
-                    KeyNavigation.up: upSeg
-                    KeyNavigation.right: pacingSwitch
+                    Keys.onUpPressed: panel.nav(overlaySeg, -1)
+                    Keys.onDownPressed: panel.nav(overlaySeg, 1)
+                    KeyNavigation.right: panel.cols === 2 ? pacingSwitch : null
                 }
             }
             FpSettingRow {
@@ -160,16 +201,108 @@ FpGlass {
                     id: pacingSwitch
                     checked: FarplayFrameGen.pacing
                     onToggled: (c) => FarplayFrameGen.pacing = c
-                    KeyNavigation.up: sharpSlider
-                    KeyNavigation.left: overlaySeg
+                    Keys.onUpPressed: panel.nav(pacingSwitch, -1)
+                    Keys.onDownPressed: panel.nav(pacingSwitch, 1)
+                    KeyNavigation.left: panel.cols === 2 ? overlaySeg : null
+                }
+            }
+            FpSettingRow {
+                boxed: true
+                Layout.preferredHeight: 84
+                title: "Volume"
+                description: "Son de la partie"
+                FpSlider {
+                    id: volSlider
+                    width: 190
+                    valueWidth: 52
+                    from: 0; to: 100; stepSize: 2
+                    unit: "%"
+                    value: Math.round(Chiaki.settings.audioVolume / 1.28)
+                    onMoved: (v) => Chiaki.settings.audioVolume = Math.round(v * 1.28)
+                    Keys.onUpPressed: panel.nav(volSlider, -1)
+                    Keys.onDownPressed: panel.nav(volSlider, 1)
+                    KeyNavigation.right: panel.cols === 2 ? micSwitch : null
+                }
+            }
+            FpSettingRow {
+                boxed: true
+                Layout.preferredHeight: 84
+                title: "Micro"
+                description: micSwitch.checked ? "Actif" : "Coupé"
+                FpSwitch {
+                    id: micSwitch
+                    enabled: !!Chiaki.session && Chiaki.session.connected
+                    checked: !!Chiaki.session && !Chiaki.session.muted
+                    onToggled: (c) => { if (Chiaki.session) Chiaki.session.muted = !c }
+                    Keys.onUpPressed: panel.nav(micSwitch, -1)
+                    Keys.onDownPressed: panel.nav(micSwitch, 1)
+                    KeyNavigation.left: panel.cols === 2 ? volSlider : null
+                }
+            }
+            FpSettingRow {
+                boxed: true
+                Layout.preferredHeight: 84
+                title: "Mode vidéo"
+                description: "Cadrage de l'image"
+                FpSegmented {
+                    id: modeSeg
+                    model: ["Normal", "Zoom", "Étirer"]
+                    minSegWidth: 58
+                    currentIndex: Chiaki.window.videoMode === panel.modeZoom ? 1 : Chiaki.window.videoMode === panel.modeStretch ? 2 : 0
+                    onActivated: (i) => Chiaki.window.videoMode = (i === 1 ? panel.modeZoom : i === 2 ? panel.modeStretch : panel.modeNormal)
+                    Keys.onUpPressed: panel.nav(modeSeg, -1)
+                    Keys.onDownPressed: panel.nav(modeSeg, 1)
+                    KeyNavigation.right: zoomSlider.visible ? zoomSlider : null
+                }
+            }
+            FpSettingRow {
+                boxed: true
+                Layout.preferredHeight: 84
+                visible: Chiaki.window.videoMode === panel.modeZoom
+                title: "Facteur de zoom"
+                description: zoomSlider.value <= -1 ? "Sans bandes noires" : "Agrandissement de l'image"
+                FpSlider {
+                    id: zoomSlider
+                    width: 190
+                    valueWidth: 60
+                    from: -1; to: 4; stepSize: 0.05
+                    unit: ""
+                    value: Chiaki.window.ZoomFactor
+                    onMoved: (v) => { Chiaki.window.ZoomFactor = v; Chiaki.settings.sZoomFactor = v }
+                    Keys.onUpPressed: panel.nav(zoomSlider, -1)
+                    Keys.onDownPressed: panel.nav(zoomSlider, 1)
+                    KeyNavigation.left: modeSeg
                 }
             }
         }
+        }
 
-        FpHints {
-            Layout.alignment: Qt.AlignHCenter
-            Layout.topMargin: 4
-            model: [["✕", "Modifier"], ["○", "Fermer"]]
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.topMargin: 2
+            spacing: 14
+            FpButton {
+                id: displayBtn
+                text: "Réglages d'affichage"
+                iconName: "display"
+                onClicked: panel.displaySettingsRequested()
+                Keys.onUpPressed: { var v = panel.navItems.filter(function(x) { return x.visible }); v[v.length - 1].forceActiveFocus() }
+                KeyNavigation.right: quitBtn
+            }
+            FpButton {
+                id: quitBtn
+                text: "Quitter la partie"
+                iconName: "power"
+                danger: true
+                onClicked: panel.quitRequested()
+                Keys.onUpPressed: { var v = panel.navItems.filter(function(x) { return x.visible }); v[v.length - 1].forceActiveFocus() }
+                KeyNavigation.left: displayBtn
+            }
+            Item { Layout.fillWidth: true }
+            FpHints {
+                visible: panel.width >= 600
+                model: [["✕", "Modifier"], ["○", "Fermer"]]
+            }
         }
     }
 }

@@ -17,7 +17,7 @@ Item {
     property list<Item> restoreFocusItems
     readonly property bool useSeparateMenuWindow: Chiaki.window.runtimeRendererBackend === 1
     readonly property int streamMenuHeight: 200
-    readonly property bool streamStatsVisible: Chiaki.settings.showStreamStats && Chiaki.session && !(menuController.open || menuController.closing) && !sessionLoading && !sessionError && !(Chiaki.settings.audioVideoDisabled & 0x02)
+    readonly property bool streamStatsVisible: false // FARPLAY: l'overlay de stats chiaki est remplacé par StatsOverlay (Farplay)
     property int separateMenuX: 0
     property int separateMenuY: 0
     property int separateMenuWidth: 0
@@ -122,19 +122,18 @@ Item {
             if (open)
                 close();
             else {
-                if (useSeparateMenuWindow) {
-                    view.updateSeparateMenuGeometry();
-                    view.grabInput(null);
-                }
+                // FARPLAY: le panneau Farplay remplace le menu du bas ; l'interface capte l'entrée
+                view.updateSeparateMenuGeometry();
+                view.grabInput(null);
                 open = true;
             }
             view.updateOverlayInteractionActive();
         }
 
         function close() {
-            if (!open || closing)
+            if (!open)
                 return;
-            closing = true;
+            closing = false; // FARPLAY: pas d'animation de fermeture du menu chiaki
             open = false;
             view.releaseInput();
             view.updateOverlayInteractionActive();
@@ -144,13 +143,47 @@ Item {
     Rectangle {
         id: loadingView
         anchors.fill: parent
-        color: "black"
+        color: "#0A0A0C" // FARPLAY
         opacity: sessionError || sessionLoading || (Chiaki.settings.audioVideoDisabled & 0x02) ? 1.0 : 0.0
         visible: opacity
 
         Behavior on opacity { NumberAnimation { duration: 250 } }
 
+        // FARPLAY: écran de chargement / erreur Farplay (l'ancien contenu ci-dessous reste caché,
+        // il porte seulement le texte d'erreur)
+        Loader {
+            id: farplayLoadingLoader
+            anchors.fill: parent
+            source: "qrc:/farplay/ui/FarplayLoading.qml"
+            onLoaded: item.focusAction()
+        }
+        Binding { target: farplayLoadingLoader.item; property: "loading"; value: sessionLoading; when: farplayLoadingLoader.status === Loader.Ready }
+        Binding { target: farplayLoadingLoader.item; property: "errorActive"; value: sessionError; when: farplayLoadingLoader.status === Loader.Ready }
+        Binding { target: farplayLoadingLoader.item; property: "errorTitle"; value: errorTitleLabel.text; when: farplayLoadingLoader.status === Loader.Ready }
+        Binding { target: farplayLoadingLoader.item; property: "errorText"; value: errorTextLabel.text; when: farplayLoadingLoader.status === Loader.Ready }
+        Binding { target: farplayLoadingLoader.item; property: "videoDisabled"; value: !!(Chiaki.settings.audioVideoDisabled & 0x02); when: farplayLoadingLoader.status === Loader.Ready }
+        Binding { target: farplayLoadingLoader.item; property: "audioDisabled"; value: !!(Chiaki.settings.audioVideoDisabled & 0x01); when: farplayLoadingLoader.status === Loader.Ready }
+        Binding { target: farplayLoadingLoader.item; property: "menuShortcut"; value: Chiaki.controllers.length ? Chiaki.settings.stringForStreamMenuShortcut() : "Ctrl+O"; when: farplayLoadingLoader.status === Loader.Ready }
+        Binding { target: farplayLoadingLoader.item; property: "dpadShortcut"; value: Chiaki.settings.stringForDpadShortcut(); when: farplayLoadingLoader.status === Loader.Ready }
+        Binding { target: farplayLoadingLoader.item; property: "dpadTouch"; value: Chiaki.settings.dpadTouchEnabled; when: farplayLoadingLoader.status === Loader.Ready }
+        Binding { target: farplayLoadingLoader.item; property: "host"; value: (Chiaki.session && !Chiaki.settings.streamerMode) ? Chiaki.session.host : ""; when: farplayLoadingLoader.status === Loader.Ready }
+        Binding { target: farplayLoadingLoader.item; property: "connected"; value: !!Chiaki.session && Chiaki.session.connected; when: farplayLoadingLoader.status === Loader.Ready }
+        Connections {
+            target: farplayLoadingLoader.item
+            function onBackRequested() { root.showMainView() }
+        }
+        Connections {
+            target: view
+            function onSessionErrorChanged() {
+                if (view.sessionError && farplayLoadingLoader.item) {
+                    view.grabInput(null);
+                    farplayLoadingLoader.item.focusAction();
+                }
+            }
+        }
+
         Item {
+            visible: false // FARPLAY
             anchors {
                 top: parent.verticalCenter
                 left: parent.left
@@ -255,54 +288,50 @@ Item {
         onVisibleChanged: {
             if (visible) {
                 menuController.close();
-                view.grabInput(goToHomeButton);
+                view.grabInput(null);
+                if (cantDisplayCard.item)
+                    cantDisplayCard.item.focusFirst();
             } else {
                 view.releaseInput();
             }
         }
 
-        Label {
+        // FARPLAY: carte Farplay à la place des widgets Material
+        Loader {
+            id: cantDisplayCard
             Layout.alignment: Qt.AlignCenter
-            text: qsTr("The screen contains content that can't be displayed using Remote Play.")
-        }
-
-        Button {
-            id: goToHomeButton
-            Layout.alignment: Qt.AlignCenter
-            Layout.preferredHeight: 60
-            text: qsTr("Go to Home Screen")
-            Material.background: activeFocus ? parent.Material.accent : undefined
-            Material.roundedScale: Material.SmallScale
-            onClicked: Chiaki.sessionGoHome()
-            Keys.onReturnPressed: clicked()
-            Keys.onEscapePressed: clicked()
+            source: "qrc:/farplay/ui/FarplayNotice.qml"
+            onLoaded: {
+                item.title = "Contenu non affichable";
+                item.message = "L'écran contient un contenu que Remote Play ne peut pas afficher.";
+                item.actionText = "Retour à l'accueil PS5";
+            }
+            Connections {
+                target: cantDisplayCard.item
+                function onAccepted() { Chiaki.sessionGoHome() }
+            }
         }
     }
 
-    RoundButton {
+    // FARPLAY: pastille réseau Farplay
+    Loader {
         anchors {
             right: parent.right
             top: parent.top
-            margins: 40
+            margins: 32
         }
-        icon.source: "qrc:/icons/discover-off-24px.svg"
-        icon.width: 50
-        icon.height: 50
-        padding: 20
-        checked: true
-        opacity: networkIndicatorTimer.running ? 0.7 : 0.0
+        z: 90
+        source: "qrc:/farplay/ui/FarplayNetBadge.qml"
+        opacity: networkIndicatorTimer.running ? 0.9 : 0.0
         visible: opacity
-        Material.background: Material.accent
 
         Behavior on opacity { NumberAnimation { duration: 400 } }
-
-        Timer {
-            id: networkIndicatorTimer
-            running: Chiaki.session?.averagePacketLoss > (Chiaki.settings.wifiDroppedNotif * 0.01)
-            interval: 400
-        }
     }
-
+    Timer {
+        id: networkIndicatorTimer
+        running: Chiaki.session?.averagePacketLoss > (Chiaki.settings.wifiDroppedNotif * 0.01)
+        interval: 400
+    }
     Component {
         id: streamStatsContent
         Item {

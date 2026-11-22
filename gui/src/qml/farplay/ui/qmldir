@@ -21,3 +21,10 @@ FpSectionCard 1.0 FpSectionCard.qml
 FpSidebarItem 1.0 FpSidebarItem.qml
 FpHints 1.0 FpHints.qml
 FarplayStreamBar 1.0 FarplayStreamBar.qml
+FarplayStreamOverlay 1.0 FarplayStreamOverlay.qml
+FarplayDialogCard 1.0 FarplayDialogCard.qml
+FarplayStopDialog 1.0 FarplayStopDialog.qml
+FarplayPinDialog 1.0 FarplayPinDialog.qml
+FarplayLoading 1.0 FarplayLoading.qml
+FarplayNetBadge 1.0 FarplayNetBadge.qml
+FarplayNotice 1.0 FarplayNotice.qml

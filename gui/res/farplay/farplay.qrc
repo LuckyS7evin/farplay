@@ -2,6 +2,7 @@
   <qresource prefix="/farplay">
     <file>fonts/JetBrainsMono-Regular.ttf</file>
     <file>shaders/FSR.glsl</file>
+    <file>shaders/Deartifact.glsl</file>
     <file alias="StatsOverlay.qml">../../src/qml/farplay/StatsOverlay.qml</file>
     <file alias="ui/qmldir">../../src/qml/farplay/ui/qmldir</file>
     <file alias="ui/FarplayDiagnostic.qml">../../src/qml/farplay/ui/FarplayDiagnostic.qml</file>
@@ -26,5 +27,12 @@
     <file alias="ui/FpSidebarItem.qml">../../src/qml/farplay/ui/FpSidebarItem.qml</file>
     <file alias="ui/FpHints.qml">../../src/qml/farplay/ui/FpHints.qml</file>
     <file alias="ui/FarplayStreamBar.qml">../../src/qml/farplay/ui/FarplayStreamBar.qml</file>
+    <file alias="ui/FarplayNotice.qml">../../src/qml/farplay/ui/FarplayNotice.qml</file>
+    <file alias="ui/FarplayNetBadge.qml">../../src/qml/farplay/ui/FarplayNetBadge.qml</file>
+    <file alias="ui/FarplayLoading.qml">../../src/qml/farplay/ui/FarplayLoading.qml</file>
+    <file alias="ui/FarplayPinDialog.qml">../../src/qml/farplay/ui/FarplayPinDialog.qml</file>
+    <file alias="ui/FarplayStopDialog.qml">../../src/qml/farplay/ui/FarplayStopDialog.qml</file>
+    <file alias="ui/FarplayDialogCard.qml">../../src/qml/farplay/ui/FarplayDialogCard.qml</file>
+    <file alias="ui/FarplayStreamOverlay.qml">../../src/qml/farplay/ui/FarplayStreamOverlay.qml</file>
   </qresource>
 </RCC>

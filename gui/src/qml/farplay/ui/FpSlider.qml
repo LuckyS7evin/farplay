@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
 import QtQuick
 
-// Thin slider: 3 px track, 14 px knob.
+// Fine slider: 2 px track, 12 px knob.
 FocusScope {
     id: root
     property real from: 0
@@ -16,7 +16,7 @@ FocusScope {
 
     activeFocusOnTab: true
     implicitWidth: 340
-    implicitHeight: 32
+    implicitHeight: 28
     opacity: enabled ? 1 : 0.4
     onActiveFocusChanged: if (activeFocus) Theme.ensureVisible(root)
 
@@ -36,18 +36,18 @@ FocusScope {
         anchors.right: label.visible ? label.left : parent.right
         anchors.rightMargin: label.visible ? Theme.unit * 2 : 0
         anchors.verticalCenter: parent.verticalCenter
-        height: 14
+        height: 12
         Rectangle {
             id: rail
             width: parent.width
-            height: 3
-            radius: 1.5
+            height: 2
+            radius: 1
             anchors.verticalCenter: parent.verticalCenter
             color: Qt.rgba(0.96, 0.945, 0.933, 0.14)
             Rectangle {
                 width: handle.x + handle.width / 2
                 height: parent.height
-                radius: 1.5
+                radius: 1
                 color: Theme.coral
             }
         }
@@ -55,13 +55,13 @@ FocusScope {
             id: handle
             x: (parent.width - width) * root.ratio
             anchors.verticalCenter: parent.verticalCenter
-            width: 14
-            height: 14
-            radius: 7
+            width: 12
+            height: 12
+            radius: 6
             color: Theme.ivory
             Rectangle {
                 anchors.fill: parent
-                anchors.margins: -5
+                anchors.margins: -4
                 radius: width / 2
                 color: "transparent"
                 border.width: 2
