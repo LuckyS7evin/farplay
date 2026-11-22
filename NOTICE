@@ -8,6 +8,8 @@ GNU Affero General Public License v3.0 (voir COPYING et LICENSES/).
 Composants tiers ajoutés par Farplay :
 - JetBrains Mono (gui/res/farplay/fonts) — SIL Open Font License 1.1,
   voir gui/res/farplay/fonts/OFL-JetBrainsMono.txt.
+- Sora (gui/res/farplay/fonts) — SIL Open Font License 1.1,
+  voir gui/res/farplay/fonts/OFL-Sora.txt.
 
 Les composants tiers hérités de chiaki-ng gardent leurs licences d'origine
 (voir LICENSES/ et third-party/).

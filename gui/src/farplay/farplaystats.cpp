@@ -144,6 +144,9 @@ void Stats::registerQml(QmlBackend *backend, QmlMainWindow *window)
     const int font_id = QFontDatabase::addApplicationFont(QStringLiteral(":/farplay/fonts/JetBrainsMono-Regular.ttf"));
     const QStringList families = QFontDatabase::applicationFontFamilies(font_id);
     s.mono_font = families.isEmpty() ? QStringLiteral("monospace") : families.first();
+    const QStringList ui_families = QFontDatabase::applicationFontFamilies(
+        QFontDatabase::addApplicationFont(QStringLiteral(":/farplay/fonts/Sora-Variable.ttf")));
+    s.ui_font = ui_families.isEmpty() ? QString() : ui_families.first();
 
     QQmlEngine::setObjectOwnership(&s, QQmlEngine::CppOwnership);
     qmlRegisterSingletonInstance("org.streetpea.chiaking", 1, 0, "Farplay", &s);
@@ -170,6 +173,17 @@ void Stats::registerQml(QmlBackend *backend, QmlMainWindow *window)
     });
     // Le mode de présentation est lu à la (re)création de la swapchain.
     connect(&s, &Stats::mailboxChanged, window, &QmlMainWindow::updateVSync);
+}
+
+bool Stats::firstLaunch() const
+{
+    return !QSettings(QStringLiteral("Farplay"), QStringLiteral("Farplay")).value(QStringLiteral("ui/wizard_done"), false).toBool();
+}
+
+void Stats::setFirstLaunchDone()
+{
+    QSettings(QStringLiteral("Farplay"), QStringLiteral("Farplay")).setValue(QStringLiteral("ui/wizard_done"), true);
+    emit firstLaunchChanged();
 }
 
 QString Stats::buildId() const

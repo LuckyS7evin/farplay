@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Farplay : triangle Play précédé de deux traînées (images générées). AGPL-3.0 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <rect x="0" y="0" width="256" height="256" rx="56" fill="#0A0A0C"/>
+  <g fill="none" stroke="#FF6B4A" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="44,84 80,128 44,172" opacity="0.3"/>
+    <polyline points="80,84 116,128 80,172" opacity="0.6"/>
+  </g>
+  <path d="M128 76 L212 128 L128 180 Z" fill="#FF6B4A" stroke="#FF6B4A" stroke-width="10" stroke-linejoin="round"/>
+</svg>

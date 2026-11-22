@@ -11,6 +11,7 @@ target_sources(chiaki PRIVATE
 	include/farplay/farplayframegen.h
 	src/farplay/farplayframegen.cpp
 	res/farplay/farplay.qrc
+	res/farplay/assets.qrc
 )
 
 if(NOT FARPLAY_GIT_HASH)

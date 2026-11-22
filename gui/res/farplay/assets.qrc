@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/farplay">
+    <file>fonts/Sora-Variable.ttf</file>
+    <file>icons/farplay.svg</file>
+  </qresource>
+</RCC>

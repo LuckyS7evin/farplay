@@ -54,6 +54,8 @@ class Stats : public QObject
     Q_PROPERTY(QString csvPath READ csvPath NOTIFY csvLoggingChanged)
     Q_PROPERTY(QVariantMap snapshot READ snapshot NOTIFY snapshotChanged)
     Q_PROPERTY(QString monoFont READ monoFont CONSTANT)
+    Q_PROPERTY(QString uiFont READ uiFont CONSTANT)
+    Q_PROPERTY(bool firstLaunch READ firstLaunch NOTIFY firstLaunchChanged)
     Q_PROPERTY(QString buildId READ buildId CONSTANT)
 
 public:
@@ -100,6 +102,9 @@ public:
     QString csvPath() const { return csv_file.fileName(); }
     QVariantMap snapshot() const { return snap; }
     QString monoFont() const { return mono_font; }
+    QString uiFont() const { return ui_font; }
+    bool firstLaunch() const;
+    Q_INVOKABLE void setFirstLaunchDone();
     QString buildId() const;
 
 signals:
@@ -107,6 +112,7 @@ signals:
     void mailboxChanged();
     void csvLoggingChanged();
     void snapshotChanged();
+    void firstLaunchChanged();
 
 private:
     explicit Stats(QObject *parent = nullptr);
@@ -158,6 +164,7 @@ private:
     QVariantMap snap;
     QTimer timer;
     QString mono_font;
+    QString ui_font;
     std::function<NetSample()> net;
     int64_t session_start_us = 0;
 };
