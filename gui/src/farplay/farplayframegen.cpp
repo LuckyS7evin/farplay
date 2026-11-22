@@ -131,22 +131,24 @@ void FrameGen::noteSourceArrival(int64_t now_us, double pts_s)
 
 void FrameGen::estimateJitter()
 {
-    // Base = arrivée la plus précoce de la fenêtre (≈ 8 s) : elle suit la
-    // dérive d'horloge PS5/PC puisque la fenêtre glisse. Retard d'une image
-    // = son décalage au-dessus de la base ; marge = 95e centile + 2 ms.
+    // Base = arrivée « sans retard » de la fenêtre (≈ 8 s), qui suit la dérive
+    // d'horloge PS5/PC puisque la fenêtre glisse. On prend le 5e centile et non
+    // le minimum : une seule image anormalement en avance (saut de pts) faisait
+    // viser des images pas encore arrivées. Marge = 95e − 5e centile + 2 ms.
     const int n = num_arrivals_;
     if (n < 10)
         return;
     double res[kArrivals];
-    double mn = 1e18;
     for (int k = 0; k < n; k++)
-        mn = std::min(mn, offsets_[k]);
-    for (int k = 0; k < n; k++)
-        res[k] = (offsets_[k] - mn) * 1000.0;
-    const int p = std::min(n - 1, int(n * 0.95));
-    std::nth_element(res, res + p, res + n);
-    margin_ms_.store(std::clamp(res[p] + 2.0, 3.0, 60.0), std::memory_order_relaxed);
-    base_offset_.store(mn, std::memory_order_relaxed);
+        res[k] = offsets_[k];
+    const int lo = int(n * 0.05);
+    const int hi = std::min(n - 1, int(n * 0.95));
+    std::nth_element(res, res + lo, res + n);
+    const double base = res[lo];
+    std::nth_element(res, res + hi, res + n);
+    const double late_ms = (res[hi] - base) * 1000.0;
+    margin_ms_.store(std::clamp(late_ms + 2.0, 3.0, 60.0), std::memory_order_relaxed);
+    base_offset_.store(base, std::memory_order_relaxed);
     base_valid_.store(true, std::memory_order_relaxed);
 }
 

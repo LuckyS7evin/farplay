@@ -7618,7 +7618,7 @@ void QmlMainWindow::render()
         }
     }
     // FARPLAY: réduction d'artefacts avant l'upscaling (hooks dans l'ordre)
-    const struct pl_hook *active_hooks[2] = {};
+    const struct pl_hook *active_hooks[farplay::Image::kMaxHooks] = {};
     const int farplay_num_hooks = farplay::Image::instance().buildHooks(fsrcnnx_hook, active_hooks);
     if (farplay_num_hooks > 0) {
         params.hooks = active_hooks;

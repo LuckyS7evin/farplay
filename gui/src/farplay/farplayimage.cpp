@@ -32,9 +32,9 @@ const struct pl_hook *loadFsr(pl_gpu gpu, bool pq)
     return pl_mpv_user_shader_parse(gpu, src.constData(), static_cast<size_t>(src.size()));
 }
 
-const struct pl_hook *loadDeartifact(pl_gpu gpu)
+const struct pl_hook *loadShader(pl_gpu gpu, const QString &path)
 {
-    QFile file(QStringLiteral(":/farplay/shaders/Deartifact.glsl"));
+    QFile file(path);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
         return nullptr;
     const QByteArray src = file.readAll();
@@ -80,9 +80,10 @@ Image::Image(QObject *parent)
 {
     QSettings st = farplaySettings();
     upscaler_.store(std::clamp(st.value(QStringLiteral("image/upscaler"), 1).toInt(), 0, 3));
-    sharpness_.store(std::clamp(st.value(QStringLiteral("image/sharpness"), 70).toInt(), 0, 100));
+    sharpness_.store(std::clamp(st.value(QStringLiteral("image/sharpness"), 50).toInt(), 0, 100));
     deband_.store(std::clamp(st.value(QStringLiteral("image/deband"), 1).toInt(), 0, 2));
     denoise_.store(std::clamp(st.value(QStringLiteral("image/denoise"), 2).toInt(), 0, 3));
+    cfl_.store(st.value(QStringLiteral("image/chroma_from_luma"), true).toBool());
     sdr_to_hdr_.store(st.value(QStringLiteral("image/sdr_to_hdr"), true).toBool());
     sdr_white_.store(std::clamp(st.value(QStringLiteral("image/sdr_white_nits"), 200).toInt(), 80, 400));
 }
@@ -100,6 +101,7 @@ void Image::save()
     st.setValue(QStringLiteral("image/sharpness"), sharpness());
     st.setValue(QStringLiteral("image/deband"), deband());
     st.setValue(QStringLiteral("image/denoise"), denoise());
+    st.setValue(QStringLiteral("image/chroma_from_luma"), chromaFromLuma());
     st.setValue(QStringLiteral("image/sdr_to_hdr"), sdrToHdr());
     st.setValue(QStringLiteral("image/sdr_white_nits"), sdrWhiteNits());
     emit changed();
@@ -109,15 +111,17 @@ void Image::setUpscaler(int v) { v = std::clamp(v, 0, 3); if (v != upscaler()) {
 void Image::setSharpness(int v) { v = std::clamp(v, 0, 100); if (v != sharpness()) { sharpness_.store(v); save(); } }
 void Image::setDeband(int v) { v = std::clamp(v, 0, 2); if (v != deband()) { deband_.store(v); save(); } }
 void Image::setDenoise(int v) { v = std::clamp(v, 0, 3); if (v != denoise()) { denoise_.store(v); save(); } }
+void Image::setChromaFromLuma(bool v) { if (v != chromaFromLuma()) { cfl_.store(v); save(); } }
 void Image::setSdrToHdr(bool v) { if (v != sdrToHdr()) { sdr_to_hdr_.store(v); save(); } }
 void Image::setSdrWhiteNits(int v) { v = std::clamp(v, 80, 400); if (v != sdrWhiteNits()) { sdr_white_.store(v); save(); } }
 
 void Image::resetRecommended()
 {
     upscaler_.store(1);
-    sharpness_.store(70);
+    sharpness_.store(50);
     deband_.store(1);
     denoise_.store(2);
+    cfl_.store(true);
     sdr_to_hdr_.store(true);
     sdr_white_.store(200);
     save();
@@ -131,7 +135,10 @@ void Image::initGpu(pl_gpu gpu)
     fsr_pq_ = loadFsr(gpu, true);
     if (!fsr_sdr_ || !fsr_pq_)
         qWarning("Farplay: échec du chargement du shader FSR 1 (repli libplacebo)");
-    deartifact_ = loadDeartifact(gpu);
+    deartifact_ = loadShader(gpu, QStringLiteral(":/farplay/shaders/Deartifact.glsl"));
+    cfl_hook_ = loadShader(gpu, QStringLiteral(":/farplay/shaders/ChromaFromLuma.glsl"));
+    if (!cfl_hook_)
+        qWarning("Farplay: échec du chargement du shader de chroma");
     if (!deartifact_)
         qWarning("Farplay: échec du chargement du shader de réduction d'artefacts");
 }
@@ -144,6 +151,8 @@ void Image::destroyGpu()
         pl_mpv_user_shader_destroy(&fsr_pq_);
     if (deartifact_)
         pl_mpv_user_shader_destroy(&deartifact_);
+    if (cfl_hook_)
+        pl_mpv_user_shader_destroy(&cfl_hook_);
     gpu_ = nullptr;
 }
 
@@ -194,6 +203,8 @@ int Image::buildHooks(const struct pl_hook *upscale_hook, const struct pl_hook *
     static constexpr float kH[4] = {0.0f, 0.015f, 0.025f, 0.04f};
     static constexpr float kMix[4] = {0.0f, 0.8f, 0.9f, 1.0f};
     int n = 0;
+    if (chromaFromLuma() && cfl_hook_)
+        out[n++] = cfl_hook_;
     const int level = denoise();
     if (level > 0 && deartifact_) {
         setFloatParam(deartifact_, "farplay_denoise_h", kH[level]);
@@ -202,7 +213,7 @@ int Image::buildHooks(const struct pl_hook *upscale_hook, const struct pl_hook *
     }
     if (upscale_hook)
         out[n++] = upscale_hook;
-    Stats::instance().setDenoiseActive(level > 0 && deartifact_);
+    Stats::instance().setDenoiseActive((level > 0 && deartifact_) || (chromaFromLuma() && cfl_hook_));
     return n;
 }
 

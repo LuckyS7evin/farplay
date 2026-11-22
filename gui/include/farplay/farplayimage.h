@@ -23,13 +23,15 @@ class Image : public QObject
     Q_OBJECT
     // 0 = réglage chiaki-ng, 1 = FSR 1 (défaut), 2 = FSRCNNX (réseau léger), 3 = libplacebo seul
     Q_PROPERTY(int upscaler READ upscaler WRITE setUpscaler NOTIFY changed)
-    // Netteté RCAS en % (0..100), 70 par défaut (choix utilisateur)
+    // Netteté RCAS en % (0..100), 50 par défaut (avec la réduction d'artefacts)
     Q_PROPERTY(int sharpness READ sharpness WRITE setSharpness NOTIFY changed)
     // Lissage des dégradés : 0 = coupé, 1 = faible (défaut), 2 = moyen
     Q_PROPERTY(int deband READ deband WRITE setDeband NOTIFY changed)
     // Réduction des artefacts de compression (NLM sur la luminance, avant
     // l'agrandissement) : 0 = coupée, 1 = faible, 2 = moyenne (défaut), 3 = forte
     Q_PROPERTY(int denoise READ denoise WRITE setDenoise NOTIFY changed)
+    // Couleur 4:2:0 reconstruite à pleine résolution guidée par la luminance
+    Q_PROPERTY(bool chromaFromLuma READ chromaFromLuma WRITE setChromaFromLuma NOTIFY changed)
     // Afficher un flux SDR en HDR sur un écran HDR, avec luminosité de référence
     Q_PROPERTY(bool sdrToHdr READ sdrToHdr WRITE setSdrToHdr NOTIFY changed)
     Q_PROPERTY(int sdrWhiteNits READ sdrWhiteNits WRITE setSdrWhiteNits NOTIFY changed)
@@ -46,6 +48,8 @@ public:
     void setDeband(int v);
     int denoise() const { return denoise_.load(std::memory_order_relaxed); }
     void setDenoise(int v);
+    bool chromaFromLuma() const { return cfl_.load(std::memory_order_relaxed); }
+    void setChromaFromLuma(bool v);
     bool sdrToHdr() const { return sdr_to_hdr_.load(std::memory_order_relaxed); }
     void setSdrToHdr(bool v);
     int sdrWhiteNits() const { return sdr_white_.load(std::memory_order_relaxed); }
@@ -62,7 +66,8 @@ public:
                                      const struct pl_hook *chiaki_hook,
                                      const struct pl_hook *fsrcnnx8);
     // Liste des hooks à appliquer, dans l'ordre : réduction d'artefacts puis
-    // upscaling. Renvoie le nombre de hooks écrits dans `out` (2 au plus).
+    // upscaling. Renvoie le nombre de hooks écrits dans `out` (kMaxHooks au plus).
+    static constexpr int kMaxHooks = 3;
     int buildHooks(const struct pl_hook *upscale_hook, const struct pl_hook **out);
 
     // Ajuste les paramètres de rendu (lissage des dégradés).
@@ -85,10 +90,12 @@ private:
     void save();
 
     std::atomic<int> upscaler_{1};
-    std::atomic<int> sharpness_{70};
+    std::atomic<int> sharpness_{50};
     std::atomic<int> deband_{1};
     std::atomic<int> denoise_{2};
     const struct pl_hook *deartifact_ = nullptr;
+    const struct pl_hook *cfl_hook_ = nullptr;
+    std::atomic<bool> cfl_{true};
     std::atomic<bool> sdr_to_hdr_{true};
     std::atomic<int> sdr_white_{200};
 

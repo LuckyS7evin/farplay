@@ -8,8 +8,8 @@ QtObject {
     id: root
 
     readonly property var defaults: [
-        { name: "GTA 6 · 30 fps + frame gen x2", fps: 30, frameGen: 1, multiplier: 2, upscaler: 1, sharpness: 70, deband: 1 },
-        { name: "Jeu à 60 fps", fps: 60, frameGen: 0, multiplier: 2, upscaler: 1, sharpness: 70, deband: 1 }
+        { name: "GTA 6 · 30 fps + frame gen x2", fps: 30, frameGen: 1, multiplier: 2, upscaler: 1, sharpness: 50, deband: 1 },
+        { name: "Jeu à 60 fps", fps: 60, frameGen: 0, multiplier: 2, upscaler: 1, sharpness: 50, deband: 1 }
     ]
 
     property var profiles: []

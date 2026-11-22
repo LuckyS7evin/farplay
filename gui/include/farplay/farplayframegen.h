@@ -77,7 +77,10 @@ public:
     // Retard de présentation (s) à appliquer à l'horloge de pl_queue.
     double presentDelaySeconds(double source_interval_s) const;
     // Profondeur minimale de la file d'images source.
-    int minQueueDepth() const { return internalActive() ? 3 : (pacing() ? 2 : 0); }
+    // Avec la présentation retardée, la file contient l'image affichée A, la
+    // suivante B et celles arrivées pendant le retard : une limite trop basse
+    // fait mettre B de côté (image « en attente » de chiaki) et bloque la synthèse.
+    int minQueueDepth() const { return internalActive() ? 5 : (pacing() ? 3 : 0); }
     // Rend la vsync courante ; false = laisser chiaki-ng rendre normalement.
     bool render(pl_renderer renderer, const struct pl_frame_mix *mix,
                 const struct pl_frame *target, const struct pl_render_params *params);

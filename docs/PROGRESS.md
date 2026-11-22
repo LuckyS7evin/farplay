@@ -118,3 +118,10 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - `Deartifact.glsl` : NLM luma (recherche 5x5, patch 3x3, tuile partagée) avant FSR 1 ; niveaux Off/Faible/Moyen(défaut)/Fort ; test lavapipe `deartifact_test` (+3 à +6 dB, bords HUD intacts) dans le workflow Linux ; temps GPU dans l'overlay et le CSV (`gpu_denoise_avg_ms`).
 - Tous les écrans chiaki remplacés : enregistrement, ajout de console, PIN, PSN, dialogues, mapping manette, réglages complets (sections Consoles, Manette & son, Réseau…), menu en jeu (bouton PS → réglages rapides Farplay + barre), chargement/erreur, fin de session, PIN de session.
 - Accueil : « Jouer » sous les profils ; interrupteurs 36×18 et sliders 2 px.
+
+### Test du build c3cdd637 → corrections
+- FG quasi inactive (« attente de l'image suivante » 97 % du temps) depuis l'ajout du lissage : avec la présentation retardée, la file dépassait la limite de profondeur (3) et chiaki mettait l'image suivante B de côté. Limite portée à 5 (FG) / 3 (lissage). Base de l'horloge d'affichage : 5e centile des décalages arrivée−pts au lieu du minimum (une image en avance faisait viser des images non arrivées ; marge 44–60 ms observée).
+- Overlay : cadence affichée = images distinctes (jamais la fréquence écran), % de vsyncs en attente (`fg_wait_pct` dans le CSV).
+- Netteté recommandée 50 % (avec l'anti-artefacts). Anti-artefacts mesuré à 0,17 ms sur 9070 XT.
+- Nouveau : `ChromaFromLuma.glsl` (chroma 4:2:0 reconstruite par régression locale sur la luminance, bornée) : +2 à +3 dB sur bords colorés (test `chroma_test`, sites centre/gauche). Réglage « Couleurs nettes », actif par défaut.
+- HDR : le flux H.265 HDR est en PQ même console en SDR ; le diagnostic décrit le signal, pas le contenu.

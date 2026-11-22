@@ -36,3 +36,9 @@ jobs:
           g++ -std=c++17 -O2 deartifact_test.cpp $(pkg-config --cflags --libs libplacebo) -o deartifact_test
           ./deartifact_test ../../../res/farplay/shaders/Deartifact.glsl 0.015
           ./deartifact_test ../../../res/farplay/shaders/Deartifact.glsl 0.04
+      - name: Chroma guidée par la luminance
+        working-directory: gui/src/farplay/tests
+        run: |
+          g++ -std=c++17 -O2 chroma_test.cpp $(pkg-config --cflags --libs libplacebo) -o chroma_test
+          ./chroma_test ../../../res/farplay/shaders/ChromaFromLuma.glsl C
+          ./chroma_test ../../../res/farplay/shaders/ChromaFromLuma.glsl L

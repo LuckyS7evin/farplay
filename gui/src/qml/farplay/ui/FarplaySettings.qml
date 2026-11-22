@@ -396,6 +396,15 @@ FocusScope {
                                 onActivated: (i) => FarplayImage.denoise = i
                             }
                         }
+                        FpSettingRow {
+                            title: "Couleurs nettes"
+                            description: "Reconstruit la couleur, transmise en demi-résolution, à l'aide de la luminance (bords colorés, HUD, textes)"
+                            costs: ({ image: "+", gpu: "+" })
+                            FpSwitch {
+                                checked: FarplayImage.chromaFromLuma
+                                onToggled: (c) => FarplayImage.chromaFromLuma = c
+                            }
+                        }
                     }
                     FpSectionCard {
                         iconName: "color"

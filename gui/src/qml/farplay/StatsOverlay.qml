@@ -94,7 +94,7 @@ Rectangle {
                 text: "%1 · ×%2 → %3".arg(overlay.s.upscaler || "—").arg(overlay.s.upscaleFactor ? overlay.s.upscaleFactor.toFixed(2) : "—").arg(overlay.s.outResolution || "—")
             }
 
-            Key { text: "GPU anti-artefacts" }
+            Key { text: "GPU nettoyage (artefacts, couleur)" }
             Val {
                 text: overlay.s.denoiseOn ? "%1 · p99 %2".arg(overlay.ms(overlay.s.gpuDenoiseAvg)).arg(overlay.ms(overlay.s.gpuDenoiseP99)) : "coupé"
                 color: overlay.s.denoiseOn ? overlay.cIvory : overlay.cDim
