@@ -212,7 +212,7 @@ FpPage {
                 RowLayout {
                     spacing: Theme.unit * 2
                     Rectangle {
-                        width: 12; height: 12; radius: 6
+                        Layout.preferredWidth: 12; Layout.preferredHeight: 12; radius: 6
                         color: !page.finished ? Theme.coral : (page.success ? Theme.mint : Theme.alert)
                     }
                     Text {

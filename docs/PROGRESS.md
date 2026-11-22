@@ -113,3 +113,8 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - Panneau de réglages rapides centré, largeur `min(1040, fenêtre − 48)`.
 - Popup de fin de session supprimée (migration `disconnectAction 2→0`), défilement corrigé en fenêtré.
 - À tester sur le build suivant (un seul build manuel).
+
+### Réduction d'artefacts + plus aucun écran chiaki (non buildé)
+- `Deartifact.glsl` : NLM luma (recherche 5x5, patch 3x3, tuile partagée) avant FSR 1 ; niveaux Off/Faible/Moyen(défaut)/Fort ; test lavapipe `deartifact_test` (+3 à +6 dB, bords HUD intacts) dans le workflow Linux ; temps GPU dans l'overlay et le CSV (`gpu_denoise_avg_ms`).
+- Tous les écrans chiaki remplacés : enregistrement, ajout de console, PIN, PSN, dialogues, mapping manette, réglages complets (sections Consoles, Manette & son, Réseau…), menu en jeu (bouton PS → réglages rapides Farplay + barre), chargement/erreur, fin de session, PIN de session.
+- Accueil : « Jouer » sous les profils ; interrupteurs 36×18 et sliders 2 px.

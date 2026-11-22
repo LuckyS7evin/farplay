@@ -34,7 +34,7 @@ FpPage {
          : mode === "login" ? "Connexion PSN"
          : "Recherche publique"
     subtitle: mode === "token" ? (expired ? "Vos identifiants ont expiré : reconnectez-vous pour jouer à distance."
-                                          : "Active l'appairage automatique et le jeu hors de votre réseau, sans redirection de ports.")
+                                          : "Appairage automatique et jeu hors de votre réseau.")
             : mode === "login" ? "Récupère l'identifiant de votre compte pour l'appairage."
             : "Retrouve un identifiant de compte à partir du pseudo PSN."
     scrollable: !(webAvailable && !external && mode !== "lookup")

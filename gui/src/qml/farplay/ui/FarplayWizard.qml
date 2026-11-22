@@ -107,14 +107,19 @@ FocusScope {
                         FpButton {
                             visible: !modelData.registered && modelData.discovered
                             text: "Appairer"
-                            onClicked: root.showRegistDialog(modelData.address, modelData.ps5)
+                            onClicked: root.showFarplayView("qrc:/farplay/ui/FarplayRegister.qml", { host: modelData.address, ps5: modelData.ps5 })
                         }
                     }
                 }
                 Body {
                     visible: page.hosts.length === 0
                     color: Theme.dim
-                    text: "Aucune console trouvée. Allumez la PS5 sur le même réseau."
+                    text: "Aucune console trouvée. Allumez la PS5 sur le même réseau, ou saisissez son adresse."
+                }
+                FpButton {
+                    iconName: "plus"
+                    text: "Appairer une console"
+                    onClicked: root.showFarplayView("qrc:/farplay/ui/FarplayRegister.qml", { host: page.hosts.length > 0 ? "" : "255.255.255.255", ps5: true })
                 }
                 Text {
                     visible: page.anyRegistered

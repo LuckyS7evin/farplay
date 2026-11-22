@@ -10,17 +10,25 @@ FocusScope {
     anchors.fill: parent
 
     // Displayed section (index in `cats`). Action entries (Accueil, Diagnostic) never become current.
-    property int cat: 1
+    property int cat: 2
+    // Opens directly on a section (id of `cats`); "overlay" = shown over a running game.
+    property string section: ""
+    property bool overlay: false
+    readonly property string catId: cats[cat].id
+    property bool ps5Sel: true
     readonly property bool live: !!Chiaki.session
     readonly property var snap: Farplay.snapshot || ({})
     readonly property var cats: [
-        { text: "Accueil", icon: "home", action: true },
-        { text: "Image", icon: "image", sub: "Qualité du flux et de l'agrandissement." },
-        { text: "Fluidité", icon: "framegen", sub: "Plus d'images par seconde, sans changer le jeu." },
-        { text: "Couleur & HDR", icon: "color", sub: "Rendu des couleurs et de la luminosité." },
-        { text: "Affichage", icon: "display", sub: "Synchronisation, statistiques et fin de session." },
-        { text: "Diagnostic", icon: "diagnostic", action: true },
-        { text: "Profils", icon: "profiles", sub: "Enregistrez et rappelez vos combinaisons de réglages." }
+        { id: "home", text: "Accueil", icon: "home", action: true },
+        { id: "consoles", text: "Consoles", icon: "display", sub: "Consoles appairées, compte PlayStation Network." },
+        { id: "image", text: "Image", icon: "image", sub: "Qualité du flux et de l'agrandissement." },
+        { id: "fluid", text: "Fluidité", icon: "framegen", sub: "Plus d'images par seconde, sans changer le jeu." },
+        { id: "color", text: "Couleur & HDR", icon: "color", sub: "Rendu des couleurs et de la luminosité." },
+        { id: "display", text: "Affichage", icon: "fullscreen", sub: "Fenêtre, synchronisation, statistiques et fin de session." },
+        { id: "pad", text: "Manette & son", icon: "mic", sub: "Audio, manette, clavier et raccourcis." },
+        { id: "network", text: "Réseau", icon: "stats", sub: "Jeu à distance, qualité de connexion." },
+        { id: "profiles", text: "Profils", icon: "profiles", sub: "Enregistrez et rappelez vos combinaisons de réglages." },
+        { id: "diag", text: "Diagnostic", icon: "diagnostic", action: true }
     ]
     readonly property real budgetMs: 8
 
@@ -28,9 +36,13 @@ FocusScope {
         return (!live || v === undefined || v === null) ? "—" : Number(v).toFixed(d) + (unit ? " " + unit : "")
     }
     function activateCat(i) {
-        if (i === 0) root.showMainView()
-        else if (i === 5) root.showFarplayView("qrc:/farplay/ui/FarplayDiagnostic.qml")
+        if (i === 0) leave()
+        else if (cats[i].id === "diag") { if (!overlay) root.showFarplayView("qrc:/farplay/ui/FarplayDiagnostic.qml") }
         else focusContent()
+    }
+    function leave() {
+        if (overlay) root.closeSettingsOverlay()
+        else root.showMainView()
     }
     function firstFocusable(it) {
         for (var i = 0; i < it.children.length; i++) {
@@ -58,8 +70,14 @@ FocusScope {
         FarplayFrameGen.pacing = true
     }
 
-    Keys.onEscapePressed: { if (sidebar.activeFocus) root.showMainView(); else focusSidebar() }
-    Component.onCompleted: focusSidebar()
+    Keys.onEscapePressed: { if (sidebar.activeFocus) leave(); else focusSidebar() }
+    Component.onCompleted: {
+        for (var i = 0; i < cats.length; i++)
+            if (cats[i].id === section) cat = i
+        focusSidebar()
+    }
+    // Back from a pushed sub-screen (register, PSN...): restore focus.
+    StackView.onActivated: if (!activeFocus) focusSidebar()
 
     Rectangle { anchors.fill: parent; color: Theme.night }
 
@@ -197,7 +215,7 @@ FocusScope {
             }
             FpButton {
                 id: recoBtn
-                visible: page.cat !== 6
+                visible: ["image", "fluid", "color", "display"].indexOf(page.catId) >= 0
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 iconName: "check"
@@ -225,32 +243,88 @@ FocusScope {
                 x: contentScope.colX
                 y: 4
                 width: contentScope.colWidth
-                implicitHeight: Math.max(imagePage.visible ? imagePage.implicitHeight : 0,
+                implicitHeight: Math.max(consolesPage.visible ? consolesPage.implicitHeight : 0,
+                                         padWrap.visible ? padWrap.implicitHeight : 0,
+                                         networkPage.visible ? networkPage.implicitHeight : 0,
+                                         imagePage.visible ? imagePage.implicitHeight : 0,
                                          fluidPage.visible ? fluidPage.implicitHeight : 0,
                                          colorPage.visible ? colorPage.implicitHeight : 0,
                                          displayPage.visible ? displayPage.implicitHeight : 0,
                                          profilesPage.visible ? profilesPage.implicitHeight : 0)
                 height: implicitHeight
 
+                // ── Consoles ────────────────────────────────────────────
+                FarplaySetConsoles {
+                    id: consolesPage
+                    visible: page.catId === "consoles"
+                    width: parent.width
+                }
+
+                // ── Manette & son ───────────────────────────────────────
+                ColumnLayout {
+                    id: padWrap
+                    visible: page.catId === "pad"
+                    width: parent.width
+                    spacing: Theme.unit * 2
+                    FarplaySetAudio { id: audioPage; Layout.fillWidth: true }
+                    FarplaySetPad { id: padPage; Layout.fillWidth: true; overlayParent: page }
+                }
+
+                // ── Réseau ──────────────────────────────────────────────
+                FarplaySetNetwork {
+                    id: networkPage
+                    visible: page.catId === "network"
+                    width: parent.width
+                    ps5: page.ps5Sel
+                }
+
                 // ── Image ───────────────────────────────────────────────
                 ColumnLayout {
                     id: imagePage
-                    visible: page.cat === 1
+                    visible: page.catId === "image"
                     width: parent.width
                     spacing: Theme.unit * 2
 
                     FpSectionCard {
                         iconName: "stats"
                         title: "Flux"
-                        subtitle: "Cadence et qualité de l'image envoyée par la PS5."
+                        subtitle: "Résolution, cadence et qualité de l'image envoyée par la console."
                         FpSettingRow {
+                            title: "Console"
+                            description: "Les réglages ci-dessous s'appliquent à ce modèle."
+                            FpSegmented {
+                                model: ["PS5", "PS4"]
+                                currentIndex: page.ps5Sel ? 0 : 1
+                                onActivated: (i) => page.ps5Sel = (i === 0)
+                            }
+                        }
+                        FpSettingRow {
+                            divider: true
+                            title: "Résolution"
+                            description: "Sur le réseau local. Changer la résolution rétablit le débit conseillé."
+                            costs: ({ image: "+", latence: "−" })
+                            FpSegmented {
+                                readonly property int res: page.ps5Sel ? Chiaki.settings.resolutionLocalPS5 : Chiaki.settings.resolutionLocalPS4
+                                model: ["360p", "540p", "720p", "1080p"]
+                                currentIndex: Math.max(0, res - 1)
+                                onActivated: (i) => {
+                                    if (page.ps5Sel) { Chiaki.settings.resolutionLocalPS5 = i + 1; Chiaki.settings.bitrateLocalPS5 = 0 }
+                                    else { Chiaki.settings.resolutionLocalPS4 = i + 1; Chiaki.settings.bitrateLocalPS4 = 0 }
+                                }
+                            }
+                        }
+                        FpSettingRow {
+                            divider: true
                             title: "Images par seconde"
                             description: "Régler sur la cadence du jeu évite les images dupliquées."
                             costs: ({ fluidite: "+", latence: "−" })
                             FpSegmented {
                                 model: ["30", "60"]
-                                currentIndex: Chiaki.settings.fpsLocalPS5 === 60 ? 1 : 0
-                                onActivated: (i) => { Chiaki.settings.fpsLocalPS5 = (i + 1) * 30; Chiaki.settings.fpsRemotePS5 = (i + 1) * 30 }
+                                currentIndex: (page.ps5Sel ? Chiaki.settings.fpsLocalPS5 : Chiaki.settings.fpsLocalPS4) === 60 ? 1 : 0
+                                onActivated: (i) => {
+                                    if (page.ps5Sel) { Chiaki.settings.fpsLocalPS5 = (i + 1) * 30; Chiaki.settings.fpsRemotePS5 = (i + 1) * 30 }
+                                    else { Chiaki.settings.fpsLocalPS4 = (i + 1) * 30; Chiaki.settings.fpsRemotePS4 = (i + 1) * 30 }
+                                }
                             }
                         }
                         FpSettingRow {
@@ -259,10 +333,24 @@ FocusScope {
                             description: "Plus haut = image plus nette, demande un réseau stable."
                             costs: ({ image: "+" })
                             FpSlider {
+                                readonly property int res: page.ps5Sel ? Chiaki.settings.resolutionLocalPS5 : Chiaki.settings.resolutionLocalPS4
+                                readonly property int raw: page.ps5Sel ? Chiaki.settings.bitrateLocalPS5 : Chiaki.settings.bitrateLocalPS4
                                 width: 320
                                 from: 2; to: 100; stepSize: 1; unit: "Mbps"
-                                value: Chiaki.settings.bitrateLocalPS5 / 1000
-                                onMoved: (v) => Chiaki.settings.bitrateLocalPS5 = v * 1000
+                                value: raw ? raw / 1000 : [0, 2, 6, 10, 15][Math.max(1, Math.min(4, res))]
+                                onMoved: (v) => { if (page.ps5Sel) Chiaki.settings.bitrateLocalPS5 = v * 1000; else Chiaki.settings.bitrateLocalPS4 = v * 1000 }
+                            }
+                        }
+                        FpSettingRow {
+                            visible: page.ps5Sel
+                            divider: true
+                            title: "Codec vidéo"
+                            description: "H.265 est plus efficace. H.265 HDR demande un écran HDR."
+                            FpSegmented {
+                                readonly property bool gl: Chiaki.settings.rendererBackend === 1
+                                model: gl ? ["H.264", "H.265"] : ["H.264", "H.265", "H.265 HDR"]
+                                currentIndex: Math.min(Chiaki.settings.codecLocalPS5, gl ? 1 : 2)
+                                onActivated: (i) => Chiaki.settings.codecLocalPS5 = i
                             }
                         }
                     }
@@ -294,6 +382,22 @@ FocusScope {
                         }
                     }
                     FpSectionCard {
+                        iconName: "image"
+                        title: "Réduction des artefacts"
+                        subtitle: "Nettoie le flux avant l'agrandissement."
+                        costs: ({ image: "+", gpu: "+" })
+                        FpSettingRow {
+                            title: "Réduction des artefacts"
+                            description: "Atténue les blocs et le bruit de compression du flux avant l'agrandissement"
+                            costs: ({ image: "+", gpu: "+" })
+                            FpSegmented {
+                                model: ["Coupée", "Faible", "Moyenne", "Forte"]
+                                currentIndex: FarplayImage.denoise
+                                onActivated: (i) => FarplayImage.denoise = i
+                            }
+                        }
+                    }
+                    FpSectionCard {
                         iconName: "color"
                         title: "Lissage des dégradés"
                         subtitle: "Atténue les marches de couleur dues à la compression."
@@ -312,7 +416,7 @@ FocusScope {
                 // ── Fluidité ────────────────────────────────────────────
                 ColumnLayout {
                     id: fluidPage
-                    visible: page.cat === 2
+                    visible: page.catId === "fluid"
                     width: parent.width
                     spacing: Theme.unit * 2
 
@@ -378,7 +482,7 @@ FocusScope {
                 // ── Couleur & HDR ───────────────────────────────────────
                 ColumnLayout {
                     id: colorPage
-                    visible: page.cat === 3
+                    visible: page.catId === "color"
                     width: parent.width
                     spacing: Theme.unit * 2
 
@@ -419,7 +523,7 @@ FocusScope {
                 // ── Affichage ───────────────────────────────────────────
                 ColumnLayout {
                     id: displayPage
-                    visible: page.cat === 4
+                    visible: page.catId === "display"
                     width: parent.width
                     spacing: Theme.unit * 2
 
@@ -470,15 +574,99 @@ FocusScope {
                         }
                     }
                     FpSectionCard {
-                        iconName: "gear"
-                        title: "Avancé"
-                        subtitle: "Tous les réglages de chiaki-ng."
+                        iconName: "fullscreen"
+                        title: "Fenêtre"
+                        subtitle: "Taille de la fenêtre pendant la partie."
                         FpSettingRow {
-                            title: "Réglages chiaki-ng complets"
-                            description: "Manette, réseau, enregistrement et autres options."
-                            FpButton {
-                                text: "Ouvrir"
-                                onClicked: root.showSettingsDialog()
+                            title: "Type de fenêtre"
+                            FpSelect {
+                                implicitWidth: 340
+                                model: ["Résolution du flux", "Résolution personnalisée", "Ajustement manuel", "Plein écran", "Zoom", "Étirer"]
+                                currentIndex: Chiaki.settings.windowType
+                                onActivated: (i) => Chiaki.settings.windowType = i
+                            }
+                        }
+                        FpSettingRow {
+                            visible: Chiaki.settings.windowType === 1
+                            divider: true
+                            title: "Résolution personnalisée"
+                            description: "Largeur × hauteur en pixels."
+                            RowLayout {
+                                spacing: Theme.unit * 1.5
+                                FpTextField {
+                                    id: cw
+                                    focus: true
+                                    compact: true
+                                    Layout.preferredWidth: 110
+                                    text: Chiaki.settings.customResolutionWidth
+                                    inputMethodHints: Qt.ImhDigitsOnly
+                                    validator: IntValidator { bottom: 0; top: 9999 }
+                                    onEditingFinished: Chiaki.settings.customResolutionWidth = cw.acceptable ? parseInt(cw.text) || 0 : 0
+                                    KeyNavigation.right: ch
+                                }
+                                Text { text: "×"; font.family: Theme.ui; font.pixelSize: Theme.body; color: Theme.dim }
+                                FpTextField {
+                                    id: ch
+                                    compact: true
+                                    Layout.preferredWidth: 110
+                                    text: Chiaki.settings.customResolutionHeight
+                                    inputMethodHints: Qt.ImhDigitsOnly
+                                    validator: IntValidator { bottom: 0; top: 9999 }
+                                    onEditingFinished: Chiaki.settings.customResolutionHeight = ch.acceptable ? parseInt(ch.text) || 0 : 0
+                                    KeyNavigation.left: cw
+                                }
+                            }
+                        }
+                        FpSettingRow {
+                            divider: true
+                            title: "Plein écran au double-clic"
+                            FpSwitch {
+                                checked: Chiaki.settings.fullscreenDoubleClick
+                                onToggled: (c) => Chiaki.settings.fullscreenDoubleClick = c
+                            }
+                        }
+                        FpSettingRow {
+                            divider: true
+                            title: "Masquer le curseur"
+                            description: "Pendant la partie."
+                            FpSwitch {
+                                checked: Chiaki.settings.hideCursor
+                                onToggled: (c) => Chiaki.settings.hideCursor = c
+                            }
+                        }
+                    }
+                    FpSectionCard {
+                        iconName: "gear"
+                        title: "Décodage et confidentialité"
+                        subtitle: "Décodeur vidéo matériel et mode streamer."
+                        expanded: false
+                        FpSettingRow {
+                            visible: (Chiaki.settings.availableDecoders || []).length > 1
+                            title: "Décodeur matériel"
+                            description: "« Auto » convient dans presque tous les cas."
+                            FpSelect {
+                                implicitWidth: 260
+                                model: Chiaki.settings.availableDecoders
+                                currentIndex: Math.max(0, model.indexOf(Chiaki.settings.decoder))
+                                onActivated: (i) => Chiaki.settings.decoder = i ? model[i] : ""
+                            }
+                        }
+                        FpSettingRow {
+                            divider: true
+                            title: "Zero-copy"
+                            description: "Évite une copie mémoire de chaque image décodée."
+                            FpSwitch {
+                                checked: Chiaki.settings.useZeroCopy
+                                onToggled: (c) => Chiaki.settings.useZeroCopy = c
+                            }
+                        }
+                        FpSettingRow {
+                            divider: true
+                            title: "Mode streamer"
+                            description: "Masque les adresses et identifiants à l'écran."
+                            FpSwitch {
+                                checked: Chiaki.settings.streamerMode
+                                onToggled: (c) => Chiaki.settings.streamerMode = c
                             }
                         }
                     }
@@ -487,7 +675,7 @@ FocusScope {
                 // ── Profils ─────────────────────────────────────────────
                 ColumnLayout {
                     id: profilesPage
-                    visible: page.cat === 6
+                    visible: page.catId === "profiles"
                     width: parent.width
                     spacing: Theme.unit * 2
 
@@ -562,6 +750,50 @@ FocusScope {
                             }
                         }
                     }
+                    FpSectionCard {
+                        iconName: "gear"
+                        title: "Sauvegarde et journaux"
+                        subtitle: "Exporter ou importer vos réglages, journaux de diagnostic."
+                        expanded: false
+                        FpSettingRow {
+                            title: "Réglages"
+                            description: "Enregistre ou restaure tous vos réglages dans un fichier."
+                            RowLayout {
+                                spacing: Theme.unit * 2
+                                FpButton {
+                                    id: expBtn
+                                    focus: true
+                                    text: "Exporter"
+                                    onClicked: Chiaki.settings.exportSettings()
+                                    KeyNavigation.right: impBtn
+                                }
+                                FpButton {
+                                    id: impBtn
+                                    text: "Importer"
+                                    onClicked: Chiaki.settings.importSettings()
+                                    KeyNavigation.left: expBtn
+                                }
+                            }
+                        }
+                        FpSettingRow {
+                            divider: true
+                            title: "Journaux détaillés"
+                            description: "Ajoute des détails techniques aux journaux."
+                            FpSwitch {
+                                checked: Chiaki.settings.logVerbose
+                                onToggled: (c) => Chiaki.settings.logVerbose = c
+                            }
+                        }
+                        FpSettingRow {
+                            divider: true
+                            title: "Masquer les données personnelles"
+                            description: "Retire adresses et identifiants des journaux."
+                            FpSwitch {
+                                checked: Chiaki.settings.logSanitize
+                                onToggled: (c) => Chiaki.settings.logSanitize = c
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -570,7 +802,7 @@ FocusScope {
     // ── GPU pipeline strip ─────────────────────────────────────────────────
     FpGlass {
         id: pipeline
-        visible: page.cat === 1 || page.cat === 2
+        visible: page.catId === "image" || page.catId === "fluid"
         x: sidebar.width + contentScope.colX
         width: contentScope.colWidth
         anchors.bottom: footer.top

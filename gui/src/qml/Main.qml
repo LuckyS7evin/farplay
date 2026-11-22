@@ -46,6 +46,8 @@ Item {
     }
 
     function openDisplaySettings() {
+        // FARPLAY: réglages Farplay (section Affichage) en surcouche, sans quitter la partie
+        if (true) { openSettingsOverlay("display"); return; }
         useSeparateStreamSettingsWindows = preferSeparateStreamSettingsWindows;
         const loader = useSeparateStreamSettingsWindows ? separateDisplaySettingsLoader : displaySettingsLoader;
         if(loader.status == Loader.Ready)
@@ -65,6 +67,8 @@ Item {
         }
     }
     function openPlaceboSettings() {
+        // FARPLAY: réglages Farplay (section Image) en surcouche, sans quitter la partie
+        if (true) { openSettingsOverlay("image"); return; }
         if (!displaySettingsRect.opacity && !placeboSettingsRect.opacity && !colorMappingSettingsRect.opacity)
             useSeparateStreamSettingsWindows = preferSeparateStreamSettingsWindows;
         const loader = useSeparateStreamSettingsWindows ? separatePlaceboSettingsLoader : placeboSettingsLoader;
@@ -112,8 +116,32 @@ Item {
     }
 
     // FARPLAY: navigation des écrans Farplay
-    function showFarplayView(url) {
-        stack.push(url);
+    function showFarplayView(url, props) {
+        stack.push(url, props || {});
+    }
+
+    // FARPLAY: réglages Farplay par-dessus la partie en cours (Échap / ○ pour revenir au jeu)
+    function openSettingsOverlay(section) {
+        if (settingsOverlay.active)
+            return;
+        settingsOverlay.setSource("qrc:/farplay/ui/FarplaySettings.qml", {section: section || "", overlay: true});
+        settingsOverlay.active = true;
+        Chiaki.window.grabInput();
+    }
+
+    function closeSettingsOverlay() {
+        if (!settingsOverlay.active)
+            return;
+        settingsOverlay.active = false;
+        settingsOverlay.source = "";
+        Chiaki.window.releaseInput();
+    }
+
+    function showFarplaySettings(section) {
+        if (Chiaki.session)
+            openSettingsOverlay(section);
+        else
+            stack.push("qrc:/farplay/ui/FarplaySettings.qml", {section: section || ""});
     }
 
     function showChiakiMainView() {
@@ -162,54 +190,42 @@ Item {
     }
 
     function showManualHostDialog() {
-        stack.push(manualHostDialogComponent);
+        showFarplayView("qrc:/farplay/ui/FarplayAddConsole.qml"); // FARPLAY:
     }
 
+    // FARPLAY: dialogues Farplay (FarplayDialog) à la place des dialogues chiaki-ng
     function showConfirmDialog(title, text, callback, rejectCallback = null) {
-        confirmDialog.title = title;
-        confirmDialog.text = text;
-        confirmDialog.callback = callback;
-        confirmDialog.rejectCallback = rejectCallback;
-        confirmDialog.restoreFocusItem = Window.window.activeFocusItem;
-        confirmDialog.open();
+        fpDialog.item.show("confirm", title, text, callback, rejectCallback);
     }
 
     function showInfoDialog(title, text) {
-        infoDialog.title = title;
-        infoDialog.text = text;
-        infoDialog.restoreFocusItem = Window.window.activeFocusItem;
-        infoDialog.open();
+        fpDialog.item.show("info", title, text, null, null);
     }
 
     function showRendererFallbackDialog(reason) {
-        showInfoDialog(qsTr("Renderer Fallback"),
-                       qsTr("Vulkan renderer is unavailable and chiaki-ng switched to OpenGL.\n\nReason: %1").arg(reason));
+        showInfoDialog("Moteur de rendu",
+                       "Vulkan n'est pas disponible, Farplay est passé à OpenGL.\n\nRaison : %1".arg(reason));
     }
 
     function showRemindDialog(title, text, remotePlay, callback) {
-        remindDialog.title = title;
-        remindDialog.text = text;
-        remindDialog.remotePlay = remotePlay;
-        remindDialog.callback = callback;
-        remindDialog.restoreFocusItem = Window.window.activeFocusItem;
-        remindDialog.open();
+        fpDialog.item.show("remind", title, text, callback, null, remotePlay);
     }
 
 
     function showRegistDialog(host, ps5) {
-        stack.push(registDialogComponent, {host: host, ps5: ps5});
+        showFarplayView("qrc:/farplay/ui/FarplayRegister.qml", {host: host, ps5: ps5}); // FARPLAY:
     }
 
     function showSettingsDialog() {
-        stack.push(settingsDialogComponent);
+        showFarplaySettings(""); // FARPLAY:
     }
 
     function showDisplaySettingsDialog() {
-        stack.push(displaySettingsDialogComponent);
+        showFarplaySettings("display"); // FARPLAY:
     }
 
     function showPlaceboSettingsDialog() {
-        stack.push(placeboSettingsDialogComponent);
+        showFarplaySettings("image"); // FARPLAY:
     }
 
     function showPlaceboColorMappingDialog() {
@@ -233,27 +249,27 @@ Item {
             }
         }
         else
-            stack.push(placeboColorMappingDialogComponent);
+            showFarplaySettings("color"); // FARPLAY:
     }
 
     function showProfileDialog() {
-        stack.push(profileDialogComponent)
+        showFarplaySettings("profiles"); // FARPLAY:
     }
 
     function showConsolePinDialog(consoleIndex) {
-        stack.push(consolePinDialogComponent, {consoleIndex: consoleIndex});
+        showFarplayView("qrc:/farplay/ui/FarplayConsolePin.qml", {consoleIndex: consoleIndex}); // FARPLAY:
     }
 
     function showSteamShortcutDialog(fromReminder) {
-        stack.push(steamShortcutDialogComponent, {fromReminder: fromReminder});
+        // FARPLAY: raccourci Steam abandonné
     }
 
     function showPSNTokenDialog(psnurl, expired) {
-        stack.push(psnTokenDialogComponent, {psnurl: psnurl, expired: expired});
+        showFarplayView("qrc:/farplay/ui/FarplayPsn.qml", {mode: "token", expired: !!expired || psnurl === true}); // FARPLAY:
     }
 
     function showControllerMappingDialog() {
-        stack.push(controllerMappingDialogComponent)
+        showFarplayView("qrc:/farplay/ui/FarplayControllerMapping.qml", {reset: false}); // FARPLAY:
     }
 
     Component.onCompleted: {
@@ -435,11 +451,13 @@ Item {
             horizontalCenter: parent.horizontalCenter
             bottomMargin: 30
         }
-        color: Material.accent
+        color: "#17151A" // FARPLAY: toast aux couleurs Farplay
+        border.width: 1
+        border.color: "#1AF5F1EE"
         width: errorLayout.width + 40
         height: errorLayout.height + 20
         radius: 8
-        opacity: errorHideTimer.running ? 0.8 : 0.0
+        opacity: errorHideTimer.running ? 0.96 : 0.0
 
         Behavior on opacity { NumberAnimation { duration: 500 } }
 
@@ -468,69 +486,21 @@ Item {
         }
     }
 
-    Dialog {
-        id: infoDialog
-        property alias text: infoDialogLabel.text
-        property Item restoreFocusItem
-        parent: Overlay.overlay
-        x: Math.round((root.width - width) / 2)
-        y: Math.round((root.height - height) / 2)
-        modal: true
-        Material.roundedScale: Material.MediumScale
-        onOpened: infoDialogLabel.forceActiveFocus(Qt.TabFocusReason)
-        onClosed: {
-            if (restoreFocusItem)
-                restoreFocusItem.forceActiveFocus(Qt.TabFocusReason);
-            infoDialogLabel.focus = false;
-        }
-
-        Component.onCompleted: {
-            header.horizontalAlignment = Text.AlignHCenter;
-            header.background = null;
-        }
-
-        ColumnLayout {
-            spacing: 20
-
-            Label {
-                id: infoDialogLabel
-                Keys.onEscapePressed: infoDialog.close()
-                Keys.onReturnPressed: infoDialog.close()
-            }
-
-            RowLayout {
-                Layout.alignment: Qt.AlignCenter
-
-                Button {
-                    text: qsTr("OK")
-                    Material.background: Material.accent
-                    flat: true
-                    leftPadding: 50
-                    onClicked: infoDialog.close()
-                    Material.roundedScale: Material.SmallScale
-
-                    Image {
-                        anchors {
-                            left: parent.left
-                            verticalCenter: parent.verticalCenter
-                            leftMargin: 12
-                        }
-                        width: 28
-                        height: 28
-                        sourceSize: Qt.size(width, height)
-                        source: root.controllerButton("cross")
-                    }
-                }
-            }
-        }
+    // FARPLAY: dialogues Farplay (confirmation / info / rappel) ; les dialogues chiaki-ng restent dans le dépôt mais ne sont plus instanciés
+    Loader {
+        id: fpDialog
+        anchors.fill: parent
+        z: 1000
+        source: "qrc:/farplay/ui/FarplayDialog.qml"
     }
 
-    ConfirmDialog {
-        id: confirmDialog
-    }
-
-    RemindDialog {
-        id: remindDialog
+    // FARPLAY: réglages Farplay par-dessus la partie
+    Loader {
+        id: settingsOverlay
+        anchors.fill: parent
+        z: 900
+        active: false
+        focus: active
     }
 
     Connections {
@@ -565,9 +535,9 @@ Item {
             else
             {
                 if(ps5)
-                    root.showConfirmDialog(qsTr("Registration Type"), qsTr("Would you like to use automatic registration?"), () => root.autoRegister(true, host, ps5), () => root.autoRegister(false, host, ps5))
+                    root.showConfirmDialog("Type d'appairage", "Utiliser l'appairage automatique via votre compte PSN ?", () => root.autoRegister(true, host, ps5), () => root.autoRegister(false, host, ps5))
                 else
-                    root.showConfirmDialog(qsTr("Registration Type"), qsTr("Would you like to use automatic registration (must be main PS4 console registered to your PSN)?"), () => root.autoRegister(true, host, ps5), () => root.autoRegister(false, host, ps5))
+                    root.showConfirmDialog("Type d'appairage", "Utiliser l'appairage automatique (doit être la PS4 principale de votre compte PSN) ?", () => root.autoRegister(true, host, ps5), () => root.autoRegister(false, host, ps5))
             }
         }
 
@@ -595,14 +565,21 @@ Item {
         StreamView { }
     }
 
+    // FARPLAY: écran de connexion Farplay (attente console / connexion PSN)
     Component {
         id: autoConnectViewComponent
-        AutoConnectView { }
+        Loader {
+            focus: true
+            Component.onCompleted: setSource("qrc:/farplay/ui/FarplayConnecting.qml", {mode: "auto"})
+        }
     }
 
     Component {
         id: psnViewComponent
-        PsnView {}
+        Loader {
+            focus: true
+            Component.onCompleted: setSource("qrc:/farplay/ui/FarplayConnecting.qml", {mode: "psn"})
+        }
     }
 
     Component {

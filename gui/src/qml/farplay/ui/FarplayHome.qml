@@ -27,6 +27,34 @@ Item {
         if (playBtn.enabled) playBtn.forceActiveFocus()
         else if (hosts.length > 0) list.forceActiveFocus()
         else list.forceActiveFocus()
+        askPsn.start()
+    }
+    // Back from a sub-screen (register, settings...): give focus back to the page.
+    onVisibleChanged: if (visible) refocus.restart()
+    Timer {
+        id: refocus
+        interval: 0
+        onTriggered: {
+            const w = page.Window.window
+            let p = w ? w.activeFocusItem : null
+            while (p && p !== page) p = p.parent
+            if (!p) { if (playBtn.enabled) playBtn.forceActiveFocus(); else list.forceActiveFocus() }
+        }
+    }
+    // First launch: offer the PSN connection (remote play), like chiaki-ng's main view did.
+    Timer {
+        id: askPsn
+        interval: 600
+        onTriggered: {
+            if (root.initialAsk || !Chiaki.settings.remotePlayAsk) return
+            root.initialAsk = true
+            if (!Chiaki.settings.psnRefreshToken || !Chiaki.settings.psnAuthToken || !Chiaki.settings.psnAuthTokenExpiry || !Chiaki.settings.psnAccountId)
+                root.showRemindDialog("Jouer à distance via PSN",
+                    "Voulez-vous connecter votre compte PlayStation Network ?\n\nCela permet :\n• l'appairage automatique\n• de jouer hors de votre réseau, sans redirection de ports\n\n(Pour le faire plus tard : Réglages > Consoles.)",
+                    true, () => root.showPSNTokenDialog(false))
+            else
+                Chiaki.settings.remotePlayAsk = false
+        }
     }
 
     // ── Background: night + coral glow (top left) + violet-graphite vignette ──

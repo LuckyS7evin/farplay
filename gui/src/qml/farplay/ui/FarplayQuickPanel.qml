@@ -21,7 +21,7 @@ FpGlass {
     readonly property int modeNormal: 0
     readonly property int modeStretch: 1
     readonly property int modeZoom: 2
-    readonly property var navItems: [fgSwitch, multSeg, upSeg, sharpSlider, overlaySeg, pacingSwitch, volSlider, micSwitch, modeSeg, zoomSlider]
+    readonly property var navItems: [fgSwitch, multSeg, upSeg, sharpSlider, denoiseSeg, debandSeg, overlaySeg, pacingSwitch, volSlider, micSwitch, modeSeg, zoomSlider]
 
     width: 1040   // integrator may override (e.g. Math.min(1040, window.width - 48))
     implicitHeight: Math.min(col.implicitHeight, maxHeight > 0 ? maxHeight - 56 : col.implicitHeight) + 56
@@ -175,6 +175,38 @@ FpGlass {
                     Keys.onUpPressed: panel.nav(sharpSlider, -1)
                     Keys.onDownPressed: panel.nav(sharpSlider, 1)
                     KeyNavigation.left: panel.cols === 2 ? upSeg : null
+                }
+            }
+            FpSettingRow {
+                boxed: true
+                Layout.preferredHeight: 84
+                title: "Anti-artefacts"
+                description: "Blocs et bruit du flux"
+                FpSegmented {
+                    id: denoiseSeg
+                    model: ["Off", "Faible", "Moy.", "Fort"]
+                    minSegWidth: 50
+                    currentIndex: FarplayImage.denoise
+                    onActivated: (i) => FarplayImage.denoise = i
+                    Keys.onUpPressed: panel.nav(denoiseSeg, -1)
+                    Keys.onDownPressed: panel.nav(denoiseSeg, 1)
+                    KeyNavigation.right: panel.cols === 2 ? debandSeg : null
+                }
+            }
+            FpSettingRow {
+                boxed: true
+                Layout.preferredHeight: 84
+                title: "Lissage des dégradés"
+                description: "Marches de couleur"
+                FpSegmented {
+                    id: debandSeg
+                    model: ["Off", "Faible", "Moyen"]
+                    minSegWidth: 50
+                    currentIndex: FarplayImage.deband
+                    onActivated: (i) => FarplayImage.deband = i
+                    Keys.onUpPressed: panel.nav(debandSeg, -1)
+                    Keys.onDownPressed: panel.nav(debandSeg, 1)
+                    KeyNavigation.left: panel.cols === 2 ? denoiseSeg : null
                 }
             }
             FpSettingRow {
