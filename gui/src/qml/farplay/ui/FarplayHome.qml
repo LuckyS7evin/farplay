@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Window
+import QtQuick.Controls.Basic
 import org.streetpea.chiaking
 
 Item {
@@ -38,186 +40,214 @@ Item {
         }
     }
 
-    ColumnLayout {
-        id: content
-        anchors.centerIn: parent
-        width: Math.min(parent.width - Theme.unit * 10, 1100)
-        spacing: Theme.unit * 4
+    // Défilement (fenêtre réduite) : la molette, le glisser et la navigation
+    // au clavier/à la manette amènent l'élément sélectionné à l'écran.
+    Flickable {
+        id: flick
+        anchors.fill: parent
+        anchors.topMargin: Theme.unit * 11
+        contentWidth: width
+        contentHeight: Math.max(height, content.implicitHeight + Theme.unit * 6)
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: ScrollBar { policy: flick.contentHeight > flick.height ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff }
 
-        NumberAnimation on x { from: -Theme.slideDistance; to: 0; duration: Theme.duration; easing.type: Theme.easing }
-
-        // Empty state
         ColumnLayout {
-            visible: page.hosts.length === 0
-            Layout.alignment: Qt.AlignHCenter
-            spacing: Theme.unit
-            Text {
-                Layout.alignment: Qt.AlignHCenter
-                text: "Aucune console trouvée"
-                font.family: Theme.ui
-                font.pixelSize: Theme.title
-                color: Theme.ivory
-            }
-            Text {
-                Layout.alignment: Qt.AlignHCenter
-                text: "Allumez la PS5 sur le même réseau"
-                font.family: Theme.ui
-                font.pixelSize: Theme.body
-                color: Theme.dim
-            }
-        }
+            id: content
+            x: (flick.width - width) / 2
+            y: Math.max(Theme.unit * 2, (flick.height - implicitHeight) / 2)
+            width: Math.min(flick.width - Theme.unit * 10, 1100)
+            transform: Translate { id: slideIn }
+            spacing: Theme.unit * 4
 
-        ListView {
-            id: list
-            visible: page.hosts.length > 0
-            Layout.fillWidth: true
-            Layout.preferredHeight: 230
-            orientation: ListView.Horizontal
-            spacing: Theme.unit * 3
-            model: page.hosts
-            clip: false
-            focus: true
-            keyNavigationEnabled: true
-            highlightMoveDuration: Theme.duration
-            KeyNavigation.down: playBtn
+            NumberAnimation { target: slideIn; property: "x"; running: true; from: -Theme.slideDistance; to: 0; duration: Theme.duration; easing.type: Theme.easing }
 
-            delegate: FocusScope {
-                id: card
-                required property var modelData
-                required property int index
-                readonly property bool selected: ListView.isCurrentItem
-                focus: selected
-                width: 320
-                height: 220
-                Keys.onDownPressed: (e) => {
-                    if (actionBtn.visible) actionBtn.forceActiveFocus()
-                    else e.accepted = false
+            // Empty state
+            ColumnLayout {
+                visible: page.hosts.length === 0
+                Layout.alignment: Qt.AlignHCenter
+                spacing: Theme.unit
+                Text {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: "Aucune console trouvée"
+                    font.family: Theme.ui
+                    font.pixelSize: Theme.title
+                    color: Theme.ivory
                 }
-                Keys.onReturnPressed: page.play()
+                Text {
+                    Layout.alignment: Qt.AlignHCenter
+                    text: "Allumez la PS5 sur le même réseau"
+                    font.family: Theme.ui
+                    font.pixelSize: Theme.body
+                    color: Theme.dim
+                }
+            }
 
-                FpCard {
-                    anchors.fill: parent
-                    border.color: card.selected ? Theme.ivory : Theme.border
-                    border.width: card.selected ? 2 : 1
-                    ColumnLayout {
+            ListView {
+                id: list
+                visible: page.hosts.length > 0
+                Layout.fillWidth: true
+                Layout.preferredHeight: 230
+                orientation: ListView.Horizontal
+                spacing: Theme.unit * 3
+                model: page.hosts
+                clip: false
+                focus: true
+                keyNavigationEnabled: true
+                highlightMoveDuration: Theme.duration
+                KeyNavigation.down: playBtn
+
+                delegate: FocusScope {
+                    id: card
+                    required property var modelData
+                    required property int index
+                    readonly property bool selected: ListView.isCurrentItem
+                    focus: selected
+                    width: 320
+                    height: 220
+                    Keys.onDownPressed: (e) => {
+                        if (actionBtn.visible) actionBtn.forceActiveFocus()
+                        else e.accepted = false
+                    }
+                    Keys.onReturnPressed: page.play()
+
+                    FpCard {
                         anchors.fill: parent
-                        spacing: Theme.unit
-                        Text {
-                            Layout.fillWidth: true
-                            text: card.modelData.name
-                            elide: Text.ElideRight
-                            font.family: Theme.ui
-                            font.pixelSize: Theme.body
-                            color: Theme.ivory
-                        }
-                        Text {
-                            text: card.modelData.ps5 ? "PS5" : "PS4"
-                            font.family: Theme.mono
-                            font.pixelSize: Theme.small
-                            color: Theme.dim
-                        }
-                        Text {
-                            readonly property string st: card.modelData.state
-                            text: st === "ready" ? (card.modelData.ps5 ? "PS5 prête" : "PS4 prête")
-                                : st === "standby" ? "En veille" : "Introuvable"
-                            font.family: Theme.ui
-                            font.pixelSize: Theme.small
-                            color: st === "ready" ? Theme.mint : st === "standby" ? Theme.dim : Theme.alert
-                        }
-                        Item { Layout.fillHeight: true }
-                        FpButton {
-                            id: actionBtn
-                            Layout.fillWidth: true
-                            readonly property bool wake: card.modelData.state === "standby"
-                            readonly property bool pair: !card.modelData.registered && card.modelData.discovered
-                            visible: wake || pair
-                            text: wake ? "Réveiller" : "Appairer"
-                            KeyNavigation.up: card
-                            KeyNavigation.down: playBtn
-                            onClicked: {
-                                if (wake) Chiaki.wakeUpHost(card.index, card.modelData.name)
-                                else root.showRegistDialog(card.modelData.address, card.modelData.ps5)
+                        border.color: card.selected ? Theme.ivory : Theme.border
+                        border.width: card.selected ? 2 : 1
+                        ColumnLayout {
+                            anchors.fill: parent
+                            spacing: Theme.unit
+                            Text {
+                                Layout.fillWidth: true
+                                text: card.modelData.name
+                                elide: Text.ElideRight
+                                font.family: Theme.ui
+                                font.pixelSize: Theme.body
+                                color: Theme.ivory
+                            }
+                            Text {
+                                text: card.modelData.ps5 ? "PS5" : "PS4"
+                                font.family: Theme.mono
+                                font.pixelSize: Theme.small
+                                color: Theme.dim
+                            }
+                            Text {
+                                readonly property string st: card.modelData.state
+                                text: st === "ready" ? (card.modelData.ps5 ? "PS5 prête" : "PS4 prête")
+                                    : st === "standby" ? "En veille" : "Introuvable"
+                                font.family: Theme.ui
+                                font.pixelSize: Theme.small
+                                color: st === "ready" ? Theme.mint : st === "standby" ? Theme.dim : Theme.alert
+                            }
+                            Item { Layout.fillHeight: true }
+                            FpButton {
+                                id: actionBtn
+                                Layout.fillWidth: true
+                                readonly property bool wake: card.modelData.state === "standby"
+                                readonly property bool pair: !card.modelData.registered && card.modelData.discovered
+                                visible: wake || pair
+                                text: wake ? "Réveiller" : "Appairer"
+                                KeyNavigation.up: card
+                                KeyNavigation.down: playBtn
+                                onClicked: {
+                                    if (wake) Chiaki.wakeUpHost(card.index, card.modelData.name)
+                                    else root.showRegistDialog(card.modelData.address, card.modelData.ps5)
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-        FpButton {
-            id: playBtn
-            Layout.alignment: Qt.AlignHCenter
-            Layout.preferredWidth: 280
-            primary: true
-            text: "Jouer"
-            enabled: page.canPlay
-            onClicked: page.play()
-            KeyNavigation.up: list
-            KeyNavigation.down: profileSelect
-        }
+            FpButton {
+                id: playBtn
+                Layout.alignment: Qt.AlignHCenter
+                Layout.preferredWidth: 280
+                primary: true
+                text: "Jouer"
+                enabled: page.canPlay
+                onClicked: page.play()
+                KeyNavigation.up: list
+                KeyNavigation.down: profileSelect
+            }
 
-        RowLayout {
-            Layout.alignment: Qt.AlignHCenter
-            spacing: Theme.unit * 2
-            Text {
-                text: "Profil"
-                font.family: Theme.ui
-                font.pixelSize: Theme.body
-                color: Theme.dim
+            RowLayout {
+                Layout.alignment: Qt.AlignHCenter
+                spacing: Theme.unit * 2
+                Text {
+                    text: "Profil"
+                    font.family: Theme.ui
+                    font.pixelSize: Theme.body
+                    color: Theme.dim
+                }
+                FpSelect {
+                    id: profileSelect
+                    model: FarplayProfiles.names
+                    currentIndex: FarplayProfiles.names.indexOf(FarplayProfiles.current)
+                    onActivated: (i) => FarplayProfiles.apply(FarplayProfiles.names[i])
+                    KeyNavigation.up: playBtn
+                    KeyNavigation.down: settingsBtn
+                }
             }
-            FpSelect {
-                id: profileSelect
-                model: FarplayProfiles.names
-                currentIndex: FarplayProfiles.names.indexOf(FarplayProfiles.current)
-                onActivated: (i) => FarplayProfiles.apply(FarplayProfiles.names[i])
-                KeyNavigation.up: playBtn
-                KeyNavigation.down: settingsBtn
+
+            Flow {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.fillWidth: true
+                spacing: Theme.unit * 2
+                layoutDirection: Qt.LeftToRight
+                FpButton {
+                    id: settingsBtn
+                    text: "Réglages"
+                    onClicked: root.showFarplayView("qrc:/farplay/ui/FarplaySettings.qml")
+                    KeyNavigation.up: profileSelect
+                    KeyNavigation.right: diagBtn
+                }
+                FpButton {
+                    id: diagBtn
+                    text: "Diagnostic"
+                    onClicked: root.showFarplayView("qrc:/farplay/ui/FarplayDiagnostic.qml")
+                    KeyNavigation.up: profileSelect
+                    KeyNavigation.left: settingsBtn
+                    KeyNavigation.right: addBtn
+                }
+                FpButton {
+                    id: addBtn
+                    text: "Ajouter une console"
+                    onClicked: root.showManualHostDialog()
+                    KeyNavigation.up: profileSelect
+                    KeyNavigation.left: diagBtn
+                    KeyNavigation.right: advBtn
+                }
+                FpButton {
+                    id: advBtn
+                    text: "Réglages avancés (chiaki-ng)"
+                    onClicked: root.showSettingsDialog()
+                    KeyNavigation.up: profileSelect
+                    KeyNavigation.left: addBtn
+                    KeyNavigation.right: classicBtn
+                }
+                FpButton {
+                    id: classicBtn
+                    text: "Vue chiaki-ng"
+                    onClicked: root.showChiakiMainView()
+                    KeyNavigation.up: profileSelect
+                    KeyNavigation.left: advBtn
+                }
             }
         }
+    }
 
-        Flow {
-            Layout.alignment: Qt.AlignHCenter
-            Layout.fillWidth: true
-            spacing: Theme.unit * 2
-            layoutDirection: Qt.LeftToRight
-            FpButton {
-                id: settingsBtn
-                text: "Réglages"
-                onClicked: root.showFarplayView("qrc:/farplay/ui/FarplaySettings.qml")
-                KeyNavigation.up: profileSelect
-                KeyNavigation.right: diagBtn
-            }
-            FpButton {
-                id: diagBtn
-                text: "Diagnostic"
-                onClicked: root.showFarplayView("qrc:/farplay/ui/FarplayDiagnostic.qml")
-                KeyNavigation.up: profileSelect
-                KeyNavigation.left: settingsBtn
-                KeyNavigation.right: addBtn
-            }
-            FpButton {
-                id: addBtn
-                text: "Ajouter une console"
-                onClicked: root.showManualHostDialog()
-                KeyNavigation.up: profileSelect
-                KeyNavigation.left: diagBtn
-                KeyNavigation.right: advBtn
-            }
-            FpButton {
-                id: advBtn
-                text: "Réglages avancés (chiaki-ng)"
-                onClicked: root.showSettingsDialog()
-                KeyNavigation.up: profileSelect
-                KeyNavigation.left: addBtn
-                KeyNavigation.right: classicBtn
-            }
-            FpButton {
-                id: classicBtn
-                text: "Vue chiaki-ng"
-                onClicked: root.showChiakiMainView()
-                KeyNavigation.up: profileSelect
-                KeyNavigation.left: advBtn
-            }
+    Connections {
+        target: page.Window.window
+        function onActiveFocusItemChanged() {
+            const it = page.Window.window ? page.Window.window.activeFocusItem : null
+            if (!it || flick.contentHeight <= flick.height) return
+            const p = it.mapToItem(content, 0, 0)
+            if (p.y < flick.contentY + Theme.unit * 2)
+                flick.contentY = Math.max(0, p.y - Theme.unit * 2)
+            else if (p.y + it.height > flick.contentY + flick.height - Theme.unit * 2)
+                flick.contentY = Math.min(flick.contentHeight - flick.height, p.y + it.height - flick.height + Theme.unit * 2)
         }
     }
 }

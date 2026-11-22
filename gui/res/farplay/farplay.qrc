@@ -8,6 +8,7 @@
     <file alias="ui/FarplayHome.qml">../../src/qml/farplay/ui/FarplayHome.qml</file>
     <file alias="ui/FarplayProfiles.qml">../../src/qml/farplay/ui/FarplayProfiles.qml</file>
     <file alias="ui/FarplaySettings.qml">../../src/qml/farplay/ui/FarplaySettings.qml</file>
+    <file alias="ui/FarplayQuickPanel.qml">../../src/qml/farplay/ui/FarplayQuickPanel.qml</file>
     <file alias="ui/FarplayWizard.qml">../../src/qml/farplay/ui/FarplayWizard.qml</file>
     <file alias="ui/FpButton.qml">../../src/qml/farplay/ui/FpButton.qml</file>
     <file alias="ui/FpCard.qml">../../src/qml/farplay/ui/FpCard.qml</file>

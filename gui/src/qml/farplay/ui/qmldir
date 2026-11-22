@@ -13,3 +13,4 @@ FarplayHome 1.0 FarplayHome.qml
 FarplaySettings 1.0 FarplaySettings.qml
 FarplayDiagnostic 1.0 FarplayDiagnostic.qml
 FarplayWizard 1.0 FarplayWizard.qml
+FarplayQuickPanel 1.0 FarplayQuickPanel.qml

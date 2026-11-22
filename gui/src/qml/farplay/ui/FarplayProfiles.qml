@@ -20,6 +20,7 @@ QtObject {
         category: "FarplayProfiles"
         property string json: ""
         property string current: ""
+        property bool disconnectMigrated: false
     }
 
     function persist() {
@@ -85,5 +86,12 @@ QtObject {
         if (find(current) === null && profiles.length > 0)
             current = profiles[0].name
         if (store.json === "") persist()
+        // Farplay : plus de question « mettre la PS5 en veille ? » en fin de session
+        // (réglage modifiable dans Réglages > Flux > Fin de session).
+        if (!store.disconnectMigrated) {
+            if (Chiaki.settings.disconnectAction === 2)
+                Chiaki.settings.disconnectAction = 0
+            store.disconnectMigrated = true
+        }
     }
 }

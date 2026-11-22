@@ -558,6 +558,19 @@ Item {
                 checked: Farplay.overlayLevel > 0
                 onClicked: Farplay.cycleOverlayLevel()
                 KeyNavigation.left: muteButton
+                KeyNavigation.right: farplayQuickButton
+                Keys.onReturnPressed: clicked()
+                Keys.onEscapePressed: menuController.close()
+            }
+
+            // FARPLAY: réglages rapides en jeu
+            ToolButton {
+                id: farplayQuickButton
+                text: qsTr("Réglages")
+                padding: 10
+                visible: !view.useSeparateMenuWindow
+                onClicked: view.farplayQuickOpen = true
+                KeyNavigation.left: farplayStatsButton
                 KeyNavigation.right: zoomButton
                 Keys.onReturnPressed: clicked()
                 Keys.onEscapePressed: menuController.close()
@@ -570,7 +583,7 @@ Item {
                 checkable: true
                 checked: Chiaki.window.videoMode == ChiakiWindow.VideoMode.Zoom
                 onToggled: Chiaki.window.videoMode = Chiaki.window.videoMode == ChiakiWindow.VideoMode.Zoom ? ChiakiWindow.VideoMode.Normal : ChiakiWindow.VideoMode.Zoom
-                KeyNavigation.left: farplayStatsButton // FARPLAY:
+                KeyNavigation.left: farplayQuickButton // FARPLAY:
                 KeyNavigation.right: {
                     if(Chiaki.window.videoMode == ChiakiWindow.VideoMode.Zoom)
                         zoomFactor
@@ -1308,6 +1321,29 @@ Item {
                 menuController.close();
         }
     }
+    // FARPLAY: réglages rapides en jeu, ouverts depuis le menu du flux (l'entrée
+    // manette/clavier est alors captée par l'interface, pas envoyée à la PS5)
+    property bool farplayQuickOpen: false
+    Connections {
+        target: menuController
+        function onOpenChanged() { if (!menuController.open) view.farplayQuickOpen = false }
+    }
+    Loader {
+        id: farplayQuickLoader
+        anchors { right: parent.right; bottom: parent.bottom; rightMargin: 24; bottomMargin: view.streamMenuHeight + 24 }
+        z: 200
+        active: view.farplayQuickOpen && menuController.open && !view.useSeparateMenuWindow
+        source: "qrc:/farplay/ui/FarplayQuickPanel.qml"
+        onLoaded: item.focusFirst()
+        Connections {
+            target: farplayQuickLoader.item
+            function onCloseRequested() {
+                view.farplayQuickOpen = false
+                view.grabInput(inlineMenuContent.item ? inlineMenuContent.item.initialFocusItem : null)
+            }
+        }
+    }
+
     // FARPLAY: overlay de stats (F3 ou bouton "Stats" du menu de flux)
     Loader {
         anchors { left: parent.left; top: parent.top; margins: 16 }

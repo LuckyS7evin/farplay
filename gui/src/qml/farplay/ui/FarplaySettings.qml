@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
 import QtQuick
+import QtQuick.Window
 import QtQuick.Layouts
 import QtQuick.Controls.Basic
 import org.streetpea.chiaking
@@ -105,6 +106,15 @@ FocusScope {
                 FpSwitch {
                     checked: Chiaki.settings.codecLocalPS5 === 2
                     onToggled: (c) => Chiaki.settings.codecLocalPS5 = c ? 2 : 1
+                }
+            }
+            FpSettingRow {
+                title: "Fin de session"
+                description: "Ce que fait Farplay de la PS5 quand vous quittez la partie."
+                FpSelect {
+                    model: ["Ne rien faire", "Mettre la PS5 en veille", "Demander"]
+                    currentIndex: Chiaki.settings.disconnectAction
+                    onActivated: (i) => Chiaki.settings.disconnectAction = i
                 }
             }
 
@@ -302,6 +312,21 @@ FocusScope {
                 onClicked: root.showSettingsDialog()
             }
             Item { Layout.preferredHeight: Theme.unit * 6 }
+        }
+    }
+
+    // Navigation au clavier/à la manette : garder l'élément sélectionné visible
+    Connections {
+        target: page.Window.window
+        function onActiveFocusItemChanged() {
+            const fl = scroll.contentItem
+            const it = page.Window.window ? page.Window.window.activeFocusItem : null
+            if (!it || !fl || fl.contentHeight <= fl.height) return
+            const p = it.mapToItem(fl.contentItem, 0, 0)
+            if (p.y < fl.contentY + 16)
+                fl.contentY = Math.max(0, p.y - 16)
+            else if (p.y + it.height > fl.contentY + fl.height - 16)
+                fl.contentY = Math.min(fl.contentHeight - fl.height, p.y + it.height - fl.height + 16)
         }
     }
 }
