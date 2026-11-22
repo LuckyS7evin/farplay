@@ -108,63 +108,55 @@ void FrameGen::setPacing(bool v)
     }
 }
 
-void FrameGen::noteSourceArrival(int64_t now_us, double nominal_interval_s)
+void FrameGen::noteSourceArrival(int64_t now_us, double pts_s)
 {
-    // Une coupure (> 1 s) relance l'estimation.
-    if (last_arrival_us_ > 0 && now_us - last_arrival_us_ > 1000000) {
+    const double offset = now_us / 1e6 - pts_s;
+    // Saut du pts (nouvelle session, remise à zéro du flux) : on repart de zéro.
+    if (num_arrivals_ > 0 && std::fabs(offset - last_offset_) > 1.0) {
         num_arrivals_ = 0;
         arrival_head_ = 0;
+        base_valid_.store(false, std::memory_order_relaxed);
     }
-    last_arrival_us_ = now_us;
-    arrivals_[arrival_head_] = now_us;
+    last_offset_ = offset;
+    offsets_[arrival_head_] = offset;
     arrival_head_ = (arrival_head_ + 1) % kArrivals;
     if (num_arrivals_ < kArrivals)
         num_arrivals_++;
-    if (++since_estimate_ >= 30) {
+    // Estimation fréquente au début, puis toutes les 15 images.
+    if (++since_estimate_ >= (num_arrivals_ < 60 ? 5 : 15)) {
         since_estimate_ = 0;
-        estimateJitter(nominal_interval_s);
+        estimateJitter();
     }
 }
 
-void FrameGen::estimateJitter(double nominal_interval_s)
+void FrameGen::estimateJitter()
 {
-    // Horloge des images : chaque arrivée reçoit l'indice d'image le plus
-    // proche (une image perdue ne décale pas la suite), puis on ajuste une
-    // droite t = t0 + i·T (T estimé : absorbe la dérive entre l'horloge de
-    // la PS5 et celle du PC). Le retard d'une image = son écart au-dessus de
-    // la droite, ramené à l'arrivée la plus précoce. Marge = 95e centile + 2 ms.
+    // Base = arrivée la plus précoce de la fenêtre (≈ 8 s) : elle suit la
+    // dérive d'horloge PS5/PC puisque la fenêtre glisse. Retard d'une image
+    // = son décalage au-dessus de la base ; marge = 95e centile + 2 ms.
     const int n = num_arrivals_;
-    if (n < 60 || nominal_interval_s <= 0.0)
+    if (n < 10)
         return;
-    const double tn = nominal_interval_s * 1e6;
-    const int first = (arrival_head_ - n + kArrivals) % kArrivals;
-    const int64_t t0 = arrivals_[first];
-    double idx[kArrivals], tt[kArrivals];
-    double si = 0, st = 0, sii = 0, sit = 0;
-    for (int k = 0; k < n; k++) {
-        const double t = double(arrivals_[(first + k) % kArrivals] - t0);
-        const double i = std::floor(t / tn + 0.5);
-        idx[k] = i;
-        tt[k] = t;
-        si += i; st += t; sii += i * i; sit += i * t;
-    }
-    const double den = n * sii - si * si;
-    if (den <= 0.0)
-        return;
-    const double slope = (n * sit - si * st) / den;
-    const double icpt = (st - slope * si) / n;
     double res[kArrivals];
     double mn = 1e18;
-    for (int k = 0; k < n; k++) {
-        res[k] = tt[k] - (icpt + slope * idx[k]);
-        mn = std::min(mn, res[k]);
-    }
     for (int k = 0; k < n; k++)
-        res[k] -= mn;
+        mn = std::min(mn, offsets_[k]);
+    for (int k = 0; k < n; k++)
+        res[k] = (offsets_[k] - mn) * 1000.0;
     const int p = std::min(n - 1, int(n * 0.95));
     std::nth_element(res, res + p, res + n);
-    const double margin = std::clamp(res[p] / 1000.0 + 2.0, 3.0, 60.0);
-    margin_ms_.store(margin, std::memory_order_relaxed);
+    margin_ms_.store(std::clamp(res[p] + 2.0, 3.0, 60.0), std::memory_order_relaxed);
+    base_offset_.store(mn, std::memory_order_relaxed);
+    base_valid_.store(true, std::memory_order_relaxed);
+}
+
+bool FrameGen::displayPts(int64_t now_us, double queue_origin_s, double vsync_s, double delay_s, double *out_pts) const
+{
+    if (!timedPresentation() || !base_valid_.load(std::memory_order_relaxed))
+        return false;
+    // Une image de pts P arrive (au mieux) à P + base : on l'affiche à P + base + retard.
+    *out_pts = now_us / 1e6 - base_offset_.load(std::memory_order_relaxed) - queue_origin_s + vsync_s - delay_s;
+    return true;
 }
 
 void FrameGen::toggleSuspended()
@@ -182,6 +174,7 @@ void FrameGen::initGpu(pl_gpu gpu, pl_log log)
 
 void FrameGen::destroyGpu()
 {
+    last_show_ = nullptr;
     engine_.destroy();
     gpu_ok_ = false;
 }
@@ -263,12 +256,18 @@ bool FrameGen::render(pl_renderer renderer, const struct pl_frame_mix *mix,
         }
     }
 
+    // Même image qu'à la vsync précédente (ex. x2 à 120 Hz) : pas de nouvelle synthèse.
+    const bool new_image = !(sig[0] == last_sig_a_ && sig[1] == last_sig_b_ && t == last_t_ && last_show_);
     pl_tex show = tex[0];
     if (t > 1e-3f) {
-        show = engine_.synthesize(sig[0], sig[1], t, hudProtect());
+        show = new_image ? engine_.synthesize(sig[0], sig[1], t, hudProtect()) : last_show_;
         if (!show)
             return false;
     }
+    last_sig_a_ = sig[0];
+    last_sig_b_ = sig[1];
+    last_t_ = t;
+    last_show_ = show;
 
     // Présentation : simple copie vers la cible de chiaki-ng (overlay QML,
     // zoom/étirement conservés), sans réappliquer les effets.
@@ -286,7 +285,7 @@ bool FrameGen::render(pl_renderer renderer, const struct pl_frame_mix *mix,
 
     const FgEngine::Timings tm = engine_.timings();
     stats.setFrameGenState(interp ? Stats::FgState::Active : Stats::FgState::Pacing);
-    stats.onFrameGenOutput(t > 1e-3f, tm.pyramid_ms, tm.flow_ms, tm.synth_ms);
+    stats.onFrameGenOutput(t > 1e-3f, new_image, tm.pyramid_ms, tm.flow_ms, tm.synth_ms);
     return true;
 }
 

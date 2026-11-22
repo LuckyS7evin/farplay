@@ -3018,7 +3018,7 @@ void QmlMainWindow::presentFrame(ChiakiFfmpegFrame frame, int32_t frames_lost, q
 {
     const qint64 present_entry_us = static_cast<qint64>(chiaki_time_now_monotonic_us());
     farplay::Stats::instance().onSourceFrame(frame.frame); // FARPLAY: image source reçue
-    farplay::FrameGen::instance().noteSourceArrival(present_entry_us, stream_configured_frame_interval_ms / 1000.0); // FARPLAY: gigue
+    farplay::FrameGen::instance().noteSourceArrival(present_entry_us, frame.pts); // FARPLAY: horloge d'affichage et gigue
     if (decoder_delivery_us > 0 && present_entry_us >= decoder_delivery_us) {
         const qint64 gui_handoff_us = present_entry_us - decoder_delivery_us;
         if (gui_handoff_us >= 12000) {
@@ -6817,6 +6817,13 @@ void QmlMainWindow::render()
         ? (double)(ts_pre_update - ts_start) / 1000000.0 + vsync_duration - kPtsStaleMarginS
             - farplay_fg_delay_s // FARPLAY: retard d'une image source pour la frame gen
         : 0.0;
+    // FARPLAY: horloge d'affichage calée sur les arrivées réelles (suit la dérive PS5/PC)
+    if (playback_started && queue_pts_origin >= 0.0) {
+        double farplay_pts = 0.0;
+        if (farplay::FrameGen::instance().displayPts(static_cast<int64_t>(ts_pre_update), queue_pts_origin,
+                                                     vsync_duration, farplay_fg_delay_s, &farplay_pts))
+            qparams.pts = farplay_pts;
+    }
     const int depth_limit = effectiveQueueDepthLimit();
     enum pl_queue_status queue_status;
     bool kept_frame_enqueued = false;
@@ -6945,6 +6952,12 @@ void QmlMainWindow::render()
                     ? (double)(ts_refresh - ts_start) / 1000000.0 + vsync_duration - kPtsStaleMarginS
                         - farplay_fg_delay_s // FARPLAY:
                     : 0.0;
+                if (playback_started && queue_pts_origin >= 0.0) { // FARPLAY:
+                    double farplay_pts = 0.0;
+                    if (farplay::FrameGen::instance().displayPts(static_cast<int64_t>(ts_refresh), queue_pts_origin,
+                                                                 vsync_duration, farplay_fg_delay_s, &farplay_pts))
+                        qparams.pts = farplay_pts;
+                }
                 queue_status = pl_queue_update(placebo_queue, &frame_mix, &qparams);
                 queue_depth_cached.storeRelease(pl_queue_num_frames(placebo_queue));
                 frame_mix_resets = placebo_queue_resets;

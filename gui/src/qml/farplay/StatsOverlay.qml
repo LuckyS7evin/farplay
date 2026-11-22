@@ -48,7 +48,7 @@ Rectangle {
             color: overlay.s.overBudget ? overlay.cAlert : overlay.cIvory
             text: "%1 → %2 fps · GPU %3 · %4 Mbps · %5"
                 .arg(overlay.n0(overlay.s.fpsIn))
-                .arg(overlay.n0(overlay.s.fpsOut))
+                .arg(overlay.s.fpsDistinct > 0 ? overlay.n0(overlay.s.fpsDistinct) : overlay.n0(overlay.s.fpsOut))
                 .arg(overlay.s.gpuTimingAvailable ? overlay.ms(overlay.s.gpuTotal) : "n/d")
                 .arg(overlay.n1(overlay.s.bitrate))
                 .arg(overlay.s.hdr || "—")

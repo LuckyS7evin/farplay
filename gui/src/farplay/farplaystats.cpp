@@ -284,11 +284,14 @@ void Stats::setFrameGenState(FgState state)
     fg_state = state;
 }
 
-void Stats::onFrameGenOutput(bool generated, double pyramid_ms, double flow_ms, double synth_ms)
+void Stats::onFrameGenOutput(bool generated, bool new_image, double pyramid_ms, double flow_ms, double synth_ms)
 {
     QMutexLocker lock(&mutex);
-    if (generated)
-        fg_generated++;
+    if (new_image) {
+        fg_distinct++;
+        if (generated)
+            fg_generated++;
+    }
     fg_pyr_ms = pyramid_ms;
     fg_flow_ms = flow_ms;
     fg_synth_ms = synth_ms;
@@ -379,7 +382,7 @@ void Stats::tick()
     float up_factor, peak;
     int otrc, oprim, ow, oh;
     FgState fgs;
-    uint64_t fgg;
+    uint64_t fgg, fgd;
     double fpyr, fflow, fsynth, fdelay;
     uint64_t sc, dc;
     int w, h, pf, swf, trc, prim, pmode;
@@ -393,7 +396,7 @@ void Stats::tick()
         gup = computeStats(gpu_upscale_ms);
         up = upscaler; up_factor = upscale_factor; peak = src_peak_nits;
         otrc = out_trc; oprim = out_prim; ow = out_width; oh = out_height;
-        fgs = fg_state; fgg = fg_generated;
+        fgs = fg_state; fgg = fg_generated; fgd = fg_distinct;
         fpyr = fg_pyr_ms; fflow = fg_flow_ms; fsynth = fg_synth_ms; fdelay = fg_delay_ms;
         sc = src_count; dc = disp_count;
         w = src_width; h = src_height;
@@ -517,6 +520,11 @@ void Stats::tick()
     if (prev_tick_us > 0 && fgg >= prev_fg_generated)
         fps_gen = (fgg - prev_fg_generated) / 0.5; // tick de 500 ms
     prev_fg_generated = fgg;
+    // Images distinctes affichées (cadence réelle du contenu, hors répétitions de vsync)
+    double fps_distinct = 0.0;
+    if (prev_tick_us > 0 && fgd >= prev_fg_distinct)
+        fps_distinct = (fgd - prev_fg_distinct) / 0.5;
+    prev_fg_distinct = fgd;
     QString fg_name;
     switch (fgs) {
     case FgState::Off: fg_name = QStringLiteral("coupée"); break;
@@ -533,6 +541,7 @@ void Stats::tick()
     s[QStringLiteral("fgState")] = fg_name;
     s[QStringLiteral("fgActive")] = fgs == FgState::Active;
     s[QStringLiteral("fpsGen")] = fps_gen;
+    s[QStringLiteral("fpsDistinct")] = (fgs == FgState::Active || fgs == FgState::Pacing) ? fps_distinct : 0.0;
     s[QStringLiteral("fgFlowMs")] = fflow;
     s[QStringLiteral("fgSynthMs")] = fsynth;
     s[QStringLiteral("fgPyrMs")] = fpyr;
@@ -574,7 +583,7 @@ void Stats::writeCsv(const QVariantMap &s)
                "upscaler,upscale_factor,gpu_upscale_avg_ms,gpu_upscale_p99_ms,out_resolution,output,src_peak_nits,"
                "requested_bitrate_mbps,target_bitrate_mbps,"
                "fg_state,fps_gen,fg_pyr_ms,fg_flow_ms,fg_synth_ms,fg_cost_ms,fg_delay_ms,"
-               "fps_out_1pct_low,pacing_margin_ms,audio_delay_ms\n";
+               "fps_out_1pct_low,pacing_margin_ms,audio_delay_ms,fps_distinct\n";
         emit csvLoggingChanged();
     }
     const double t = ((int64_t)chiaki_time_now_monotonic_us() - session_start_us) / 1e6;
@@ -593,7 +602,7 @@ void Stats::writeCsv(const QVariantMap &s)
         << f("requestedBitrate") << ',' << f("targetBitrate") << ','
         << str("fgState") << ',' << f("fpsGen") << ',' << f("fgPyrMs") << ',' << f("fgFlowMs") << ','
         << f("fgSynthMs") << ',' << f("fgCostMs") << ',' << f("fgDelayMs") << ','
-        << f("fpsOut1Low") << ',' << f("pacingMarginMs") << ',' << f("audioDelayMs") << '\n';
+        << f("fpsOut1Low") << ',' << f("pacingMarginMs") << ',' << f("audioDelayMs") << ',' << f("fpsDistinct") << '\n';
     out.flush();
 }
 

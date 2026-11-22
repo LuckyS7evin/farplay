@@ -86,7 +86,8 @@ public:
     void setSourcePeak(float nits);
     // Phase 3 : génération d'images (thread de rendu)
     void setFrameGenState(FgState state);
-    void onFrameGenOutput(bool generated, double pyramid_ms, double flow_ms, double synth_ms);
+    // new_image = image différente de la précédente (à 120 Hz en x2, chaque image est présentée deux fois)
+    void onFrameGenOutput(bool generated, bool new_image, double pyramid_ms, double flow_ms, double synth_ms);
     void setFrameGenDelay(double ms);
     static constexpr double kBudgetFrameGenMs = 4.0;
     // Âge de la dernière image source (µs), ou -1 si aucune.
@@ -134,6 +135,8 @@ private:
     float src_peak_nits = 0.0f;
     FgState fg_state = FgState::Off;
     uint64_t fg_generated = 0;
+    uint64_t fg_distinct = 0;
+    uint64_t prev_fg_distinct = 0;
     double fg_pyr_ms = 0.0, fg_flow_ms = 0.0, fg_synth_ms = 0.0, fg_delay_ms = 0.0;
     uint64_t prev_fg_generated = 0;
     std::atomic<int64_t> last_src_seen_us{0};

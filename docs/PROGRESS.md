@@ -62,6 +62,12 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
   3. 1 % low des images affichées dans l'overlay et le CSV.
 - CI Windows en lancement manuel (quota de minutes : ~150 min par build sans cache, Windows ×2). Cache vcpkg : clé bin4, chemin relatif, à vérifier au prochain build.
 
+## Test frame gen (build 00fbb4df, 22/11)
+- Frame gen indisponible : chiaki-ng a « Frame Delivery = Direct Mapping » par défaut (settings/direct_frame_mapping = true) → corrigé (mode direct ignoré quand frame gen/lissage actifs). Contournement utilisateur : « Frame Queue ».
+- Avec Frame Queue : fluide, FG ≈ 2,4 ms GPU (flux 1,5, synthèse 0,5), 120 Hz. Décrochage après ~60 s (« attente de l'image suivante » permanent) : horloge d'affichage calée sur ts_start de chiaki → la dérive PS5/PC finit par dépasser la marge de 3 ms. Corrigé : horloge d'affichage = pts + décalage d'arrivée minimal sur 8 s (`FrameGen::displayPts`), marge = 95e centile.
+- « 120 fps » en x2 à 120 Hz = chaque image présentée deux fois : compteur d'images distinctes ajouté (`fpsDistinct`), et plus de synthèse redondante pour une image répétée.
+- Comparaison PushFPS (réglages utilisateur) : SMAA + NIS + « NR » IA 9,4 ms + FSR 4 FG via pilote + flux optique FidelityFX ; son retardé de 92 ms (latence nettement plus haute que Farplay ≈ 36 ms). Image jugée « pas très propre » sur Farplay : à préciser (FG vs upscaling/compression).
+
 ## Fichiers Farplay
 - `gui/src/farplay/farplay.cmake` : sources, qrc, FARPLAY_GIT_HASH, OUTPUT_NAME.
 - `gui/{include,src}/farplay/farplaystats.*` : `farplay::Stats` (singleton QML `Farplay`, compteurs, timings GPU, CSV `Documents/Farplay/stats-*.csv`).

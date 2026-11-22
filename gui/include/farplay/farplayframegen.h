@@ -55,9 +55,14 @@ public:
     // Présentation cadencée par l'horloge des images (frame gen ou lissage).
     bool timedPresentation() const { return internalActive() || pacing(); }
 
-    // Arrivée d'une image source (thread décodage) : alimente l'estimation
-    // de la gigue. nominal_interval_s = intervalle attendu (1/fps du flux).
-    void noteSourceArrival(int64_t now_us, double nominal_interval_s);
+    // Arrivée d'une image source (thread décodage) : horodatage d'arrivée et
+    // pts du flux (s). Alimente l'horloge d'affichage et l'estimation de la gigue.
+    void noteSourceArrival(int64_t now_us, double pts_s);
+    // Horloge d'affichage (thread de rendu) : pts relatif à la file à viser
+    // pour la vsync courante, calé sur l'arrivée la plus précoce récente
+    // (insensible à la dérive entre l'horloge de la PS5 et celle du PC).
+    // false tant qu'il n'y a pas assez de mesures.
+    bool displayPts(int64_t now_us, double queue_origin_s, double vsync_s, double delay_s, double *out_pts) const;
     // Marge anti-gigue actuelle (ms) et retard total appliqué à l'image (ms),
     // que le son doit aussi subir pour rester synchronisé.
     double jitterMarginMs() const { return margin_ms_.load(std::memory_order_relaxed); }
@@ -92,18 +97,26 @@ private:
     std::atomic<double> margin_ms_{3.0};
     mutable std::atomic<double> audio_delay_ms_{0.0};
 
-    // Estimation de la gigue (thread décodage uniquement)
+    // Estimation de la gigue (thread décodage uniquement) : décalage
+    // arrivée − pts de chaque image ; le minimum sur la fenêtre = arrivée
+    // « sans retard », l'écart au minimum = retard de l'image.
     static constexpr int kArrivals = 240; // ≈ 8 s à 30 fps
-    int64_t arrivals_[kArrivals] = {};
+    double offsets_[kArrivals] = {};
     int num_arrivals_ = 0;
     int arrival_head_ = 0;
     int since_estimate_ = 0;
-    int64_t last_arrival_us_ = 0;
-    void estimateJitter(double nominal_interval_s);
+    double last_offset_ = 0.0;
+    std::atomic<double> base_offset_{0.0};
+    std::atomic<bool> base_valid_{false};
+    void estimateJitter();
     bool amd_ = false;
 
     FgEngine engine_;
     bool gpu_ok_ = false;
+    // Dernière image présentée (évite de resynthétiser une image répétée)
+    uint64_t last_sig_a_ = 0, last_sig_b_ = 0;
+    float last_t_ = -1.0f;
+    pl_tex last_show_ = nullptr;
 };
 
 } // namespace farplay
