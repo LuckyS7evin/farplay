@@ -1,11 +1,8 @@
 name: Farplay Windows x64
 
+# Lancement manuel uniquement (onglet Actions > « Run workflow ») : un build Windows
+# coûte ~40 à 150 minutes de quota (minutes Windows comptées double).
 on:
-  push:
-    branches:
-      - main
-      - 'claude/**'
-  pull_request:
   workflow_dispatch:
 
 permissions:
