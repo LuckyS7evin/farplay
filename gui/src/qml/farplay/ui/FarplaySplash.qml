@@ -24,7 +24,7 @@ FocusScope {
     function outCubic(x) { return 1 - Math.pow(1 - x, 3) }
     function outBack(x) { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2) }
 
-    readonly property real s: Math.max(96, Math.min(width, height) * 0.16)   // logo height
+    readonly property real s: Math.max(96, Math.min(width, height) * 0.2)   // logo height
     readonly property real chev1: outCubic(seg(120, 420))
     readonly property real chev2: outCubic(seg(280, 580))
     readonly property real tri: seg(470, 830)
@@ -70,7 +70,7 @@ FocusScope {
                     centerX: root.width / 2; centerY: root.height / 2
                     centerRadius: Math.max(root.width, root.height) * 0.42
                     focalX: centerX; focalY: centerY
-                    GradientStop { position: 0.0; color: Qt.rgba(1, 0.42, 0.29, 0.20) }
+                    GradientStop { position: 0.0; color: Qt.rgba(1, 0.42, 0.29, 0.26) }
                     GradientStop { position: 0.5; color: Qt.rgba(1, 0.42, 0.29, 0.06) }
                     GradientStop { position: 1.0; color: Qt.rgba(1, 0.42, 0.29, 0) }
                 }
