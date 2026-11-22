@@ -998,7 +998,7 @@ DialogView {
 
                     Label {
                         Layout.alignment: Qt.AlignRight
-                        text: qsTr("Renforce les contours après FSR 1. Trop haut = halos (conseillé : 30 %)")
+                        text: qsTr("Renforce les contours après FSR 1. Trop haut = halos (conseillé : 70 %)")
                     }
 
                     Label {

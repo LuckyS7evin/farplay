@@ -38,7 +38,9 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - Mesures : rendu source libplacebo ≈ 1,7–1,9 ms ; FSRCNNX ≈ 3,5 ms dont 1,5 ms d'upscaling (budget réseau 4 ms). Cible PS5 en bit/s : 97 Mbps pour 100 demandés, débit réel 9–11 Mbps médian (pics 45) → l'encodeur VBR de la PS5 n'a pas besoin de plus, le réglage n'est pas le facteur limitant. Pics d'affichage 130–177 ms = arrêts du flux (rafale d'images juste après).
 
 - Test 2 (build 884627af) : FSR 1 actif, upscaling 0,42–0,56 ms (p99 0,78) ✔ budget 1 ms ; rendu source total 2,3–3,8 ms ✔ 8 ms ; HDR de bout en bout ✔ ; cible PS5 confirmée 92–97 Mbps pour 100 demandés (réel 3–8 Mbps sur scène calme). Test SDR→HDR abandonné à la demande de l'utilisateur (non validé).
-- Phase 2 en attente du verdict visuel de l'utilisateur (netteté/halos) puis feu vert phase 3.
+- Phase 2 close : netteté par défaut 70 % (choix utilisateur, le cahier des charges disait 30 %).
+- Phase 0 (utilisateur) : AFMF fonctionne sur chiaki-ng mais qualité jugée moyenne, Lossless Scaling préféré → frame gen interne prioritaire, AFMF = option de dernier recours.
+- Saccades signalées dans les 3 modes : 30 fps sur écran 144 Hz en FIFO = cadence 4/5 rafraîchissements (27,8/34,7 ms, cf. p99 affichage ≈ 35 ms) + retards ponctuels du flux (p99 source 45–67 ms). Pistes : 120 Hz ou VRR, pacing phase 3.
 
 ## Fichiers Farplay
 - `gui/src/farplay/farplay.cmake` : sources, qrc, FARPLAY_GIT_HASH, OUTPUT_NAME.

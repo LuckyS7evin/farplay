@@ -23,7 +23,7 @@ class Image : public QObject
     Q_OBJECT
     // 0 = réglage chiaki-ng, 1 = FSR 1 (défaut), 2 = FSRCNNX (réseau léger), 3 = libplacebo seul
     Q_PROPERTY(int upscaler READ upscaler WRITE setUpscaler NOTIFY changed)
-    // Netteté RCAS en % (0..100), 30 par défaut
+    // Netteté RCAS en % (0..100), 70 par défaut (choix utilisateur)
     Q_PROPERTY(int sharpness READ sharpness WRITE setSharpness NOTIFY changed)
     // Lissage des dégradés : 0 = coupé, 1 = faible (défaut), 2 = moyen
     Q_PROPERTY(int deband READ deband WRITE setDeband NOTIFY changed)
@@ -77,7 +77,7 @@ private:
     void save();
 
     std::atomic<int> upscaler_{1};
-    std::atomic<int> sharpness_{30};
+    std::atomic<int> sharpness_{70};
     std::atomic<int> deband_{1};
     std::atomic<bool> sdr_to_hdr_{true};
     std::atomic<int> sdr_white_{200};

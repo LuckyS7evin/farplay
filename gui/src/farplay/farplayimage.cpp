@@ -60,7 +60,7 @@ Image::Image(QObject *parent)
 {
     QSettings st = farplaySettings();
     upscaler_.store(std::clamp(st.value(QStringLiteral("image/upscaler"), 1).toInt(), 0, 3));
-    sharpness_.store(std::clamp(st.value(QStringLiteral("image/sharpness"), 30).toInt(), 0, 100));
+    sharpness_.store(std::clamp(st.value(QStringLiteral("image/sharpness"), 70).toInt(), 0, 100));
     deband_.store(std::clamp(st.value(QStringLiteral("image/deband"), 1).toInt(), 0, 2));
     sdr_to_hdr_.store(st.value(QStringLiteral("image/sdr_to_hdr"), true).toBool());
     sdr_white_.store(std::clamp(st.value(QStringLiteral("image/sdr_white_nits"), 200).toInt(), 80, 400));
@@ -92,7 +92,7 @@ void Image::setSdrWhiteNits(int v) { v = std::clamp(v, 80, 400); if (v != sdrWhi
 void Image::resetRecommended()
 {
     upscaler_.store(1);
-    sharpness_.store(30);
+    sharpness_.store(70);
     deband_.store(1);
     sdr_to_hdr_.store(true);
     sdr_white_.store(200);
