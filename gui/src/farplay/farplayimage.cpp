@@ -32,6 +32,26 @@ const struct pl_hook *loadFsr(pl_gpu gpu, bool pq)
     return pl_mpv_user_shader_parse(gpu, src.constData(), static_cast<size_t>(src.size()));
 }
 
+const struct pl_hook *loadDeartifact(pl_gpu gpu)
+{
+    QFile file(QStringLiteral(":/farplay/shaders/Deartifact.glsl"));
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return nullptr;
+    const QByteArray src = file.readAll();
+    return pl_mpv_user_shader_parse(gpu, src.constData(), static_cast<size_t>(src.size()));
+}
+
+void setFloatParam(const struct pl_hook *hook, const char *name, float v)
+{
+    if (!hook)
+        return;
+    for (int i = 0; i < hook->num_parameters; i++) {
+        const struct pl_hook_par &p = hook->parameters[i];
+        if (p.data && p.name && std::strcmp(p.name, name) == 0)
+            p.data->f = v;
+    }
+}
+
 void setSharpnessParam(const struct pl_hook *hook, float stops)
 {
     if (!hook)
@@ -62,6 +82,7 @@ Image::Image(QObject *parent)
     upscaler_.store(std::clamp(st.value(QStringLiteral("image/upscaler"), 1).toInt(), 0, 3));
     sharpness_.store(std::clamp(st.value(QStringLiteral("image/sharpness"), 70).toInt(), 0, 100));
     deband_.store(std::clamp(st.value(QStringLiteral("image/deband"), 1).toInt(), 0, 2));
+    denoise_.store(std::clamp(st.value(QStringLiteral("image/denoise"), 2).toInt(), 0, 3));
     sdr_to_hdr_.store(st.value(QStringLiteral("image/sdr_to_hdr"), true).toBool());
     sdr_white_.store(std::clamp(st.value(QStringLiteral("image/sdr_white_nits"), 200).toInt(), 80, 400));
 }
@@ -78,6 +99,7 @@ void Image::save()
     st.setValue(QStringLiteral("image/upscaler"), upscaler());
     st.setValue(QStringLiteral("image/sharpness"), sharpness());
     st.setValue(QStringLiteral("image/deband"), deband());
+    st.setValue(QStringLiteral("image/denoise"), denoise());
     st.setValue(QStringLiteral("image/sdr_to_hdr"), sdrToHdr());
     st.setValue(QStringLiteral("image/sdr_white_nits"), sdrWhiteNits());
     emit changed();
@@ -86,6 +108,7 @@ void Image::save()
 void Image::setUpscaler(int v) { v = std::clamp(v, 0, 3); if (v != upscaler()) { upscaler_.store(v); save(); } }
 void Image::setSharpness(int v) { v = std::clamp(v, 0, 100); if (v != sharpness()) { sharpness_.store(v); save(); } }
 void Image::setDeband(int v) { v = std::clamp(v, 0, 2); if (v != deband()) { deband_.store(v); save(); } }
+void Image::setDenoise(int v) { v = std::clamp(v, 0, 3); if (v != denoise()) { denoise_.store(v); save(); } }
 void Image::setSdrToHdr(bool v) { if (v != sdrToHdr()) { sdr_to_hdr_.store(v); save(); } }
 void Image::setSdrWhiteNits(int v) { v = std::clamp(v, 80, 400); if (v != sdrWhiteNits()) { sdr_white_.store(v); save(); } }
 
@@ -94,6 +117,7 @@ void Image::resetRecommended()
     upscaler_.store(1);
     sharpness_.store(70);
     deband_.store(1);
+    denoise_.store(2);
     sdr_to_hdr_.store(true);
     sdr_white_.store(200);
     save();
@@ -107,6 +131,9 @@ void Image::initGpu(pl_gpu gpu)
     fsr_pq_ = loadFsr(gpu, true);
     if (!fsr_sdr_ || !fsr_pq_)
         qWarning("Farplay: échec du chargement du shader FSR 1 (repli libplacebo)");
+    deartifact_ = loadDeartifact(gpu);
+    if (!deartifact_)
+        qWarning("Farplay: échec du chargement du shader de réduction d'artefacts");
 }
 
 void Image::destroyGpu()
@@ -115,6 +142,8 @@ void Image::destroyGpu()
         pl_mpv_user_shader_destroy(&fsr_sdr_);
     if (fsr_pq_)
         pl_mpv_user_shader_destroy(&fsr_pq_);
+    if (deartifact_)
+        pl_mpv_user_shader_destroy(&deartifact_);
     gpu_ = nullptr;
 }
 
@@ -156,6 +185,25 @@ const struct pl_hook *Image::selectHook(bool source_pq, float upscale_factor,
 
     stats.setUpscaler(used, upscale_factor);
     return hook;
+}
+
+int Image::buildHooks(const struct pl_hook *upscale_hook, const struct pl_hook **out)
+{
+    // Force (écart de patch toléré en valeur de code) et part de l'image filtrée.
+    // Réglés sur un test synthétique bruit + blocs 8x8 : +2 / +4 / +5 dB.
+    static constexpr float kH[4] = {0.0f, 0.015f, 0.025f, 0.04f};
+    static constexpr float kMix[4] = {0.0f, 0.8f, 0.9f, 1.0f};
+    int n = 0;
+    const int level = denoise();
+    if (level > 0 && deartifact_) {
+        setFloatParam(deartifact_, "farplay_denoise_h", kH[level]);
+        setFloatParam(deartifact_, "farplay_denoise_mix", kMix[level]);
+        out[n++] = deartifact_;
+    }
+    if (upscale_hook)
+        out[n++] = upscale_hook;
+    Stats::instance().setDenoiseActive(level > 0 && deartifact_);
+    return n;
 }
 
 void Image::applyRenderParams(struct pl_render_params *params)

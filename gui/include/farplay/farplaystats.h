@@ -87,6 +87,7 @@ public:
     void setUpscaler(Upscaler used, float factor);
     void setOutputColor(int pl_transfer, int pl_primaries, int width, int height);
     void setSourcePeak(float nits);
+    void setDenoiseActive(bool active) { denoise_active.store(active, std::memory_order_relaxed); }
     // Phase 3 : génération d'images (thread de rendu)
     void setFrameGenState(FgState state);
     // new_image = image différente de la précédente (à 120 Hz en x2, chaque image est présentée deux fois)
@@ -135,6 +136,7 @@ private:
     SampleRing<kRing> disp_interval_ms;
     SampleRing<kRing> gpu_frame_ms;   // PL_RENDER_STAGE_FRAME : traitement d'une image source
     SampleRing<kRing> gpu_blend_ms;   // PL_RENDER_STAGE_BLEND : composition/mélange par image affichée
+    SampleRing<kRing> gpu_denoise_ms; // réduction d'artefacts (shader Farplay NLM)
     SampleRing<kRing> gpu_upscale_ms; // passes d'upscaling (shaders FSR / FSRCNNX), incluses dans FRAME
     Upscaler upscaler = Upscaler::None;
     float upscale_factor = 0.0f;
@@ -161,6 +163,8 @@ private:
     uint64_t acc_frame_ns = 0;
     uint64_t acc_blend_ns = 0;
     uint64_t acc_upscale_ns = 0;
+    uint64_t acc_denoise_ns = 0;
+    std::atomic<bool> denoise_active{false};
 
     std::atomic<bool> mailbox_enabled{false};
     std::atomic<bool> session_active{false};

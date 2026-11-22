@@ -228,9 +228,12 @@ void Stats::onDisplayFrame(int64_t now_us)
         gpu_blend_ms.push(acc_blend_ns / 1e6f);
     if (acc_upscale_ns)
         gpu_upscale_ms.push(acc_upscale_ns / 1e6f);
+    if (acc_denoise_ns)
+        gpu_denoise_ms.push(acc_denoise_ns / 1e6f);
     acc_frame_ns = 0;
     acc_blend_ns = 0;
     acc_upscale_ns = 0;
+    acc_denoise_ns = 0;
 }
 
 void Stats::plInfoCallback(void *priv, const struct pl_render_info *info)
@@ -254,6 +257,8 @@ void Stats::plInfoCallback(void *priv, const struct pl_render_info *info)
         s->acc_blend_ns += ns;
     if (upscale)
         s->acc_upscale_ns += ns;
+    if (desc && std::strstr(desc, "Farplay reduction artefacts"))
+        s->acc_denoise_ns += ns;
 }
 
 void Stats::setUpscaler(Upscaler used, float factor)
@@ -329,6 +334,7 @@ void Stats::setSessionActive(bool active)
             gpu_frame_ms.clear();
             gpu_blend_ms.clear();
             gpu_upscale_ms.clear();
+            gpu_denoise_ms.clear();
             last_src_us = last_disp_us = 0;
             src_count = disp_count = 0;
             src_pix_fmt = -1;
@@ -377,7 +383,7 @@ void Stats::setCsvLogging(bool enabled)
 void Stats::tick()
 {
     const int64_t now = (int64_t)chiaki_time_now_monotonic_us();
-    RingStats src, disp, gframe, gblend, gup;
+    RingStats src, disp, gframe, gblend, gup, gden;
     Upscaler up;
     float up_factor, peak;
     int otrc, oprim, ow, oh;
@@ -394,6 +400,7 @@ void Stats::tick()
         gframe = computeStats(gpu_frame_ms);
         gblend = computeStats(gpu_blend_ms);
         gup = computeStats(gpu_upscale_ms);
+        gden = computeStats(gpu_denoise_ms);
         up = upscaler; up_factor = upscale_factor; peak = src_peak_nits;
         otrc = out_trc; oprim = out_prim; ow = out_width; oh = out_height;
         fgs = fg_state; fgg = fg_generated; fgd = fg_distinct;
@@ -486,6 +493,10 @@ void Stats::tick()
     s[QStringLiteral("upscaleBudget")] = up_budget;
     s[QStringLiteral("gpuUpscaleAvg")] = has_up_shader ? gup.avg : 0.0;
     s[QStringLiteral("gpuUpscaleP99")] = has_up_shader ? gup.p99 : 0.0;
+    const bool den_on = denoise_active.load(std::memory_order_relaxed);
+    s[QStringLiteral("denoiseOn")] = den_on;
+    s[QStringLiteral("gpuDenoiseAvg")] = den_on ? gden.avg : 0.0;
+    s[QStringLiteral("gpuDenoiseP99")] = den_on ? gden.p99 : 0.0;
     s[QStringLiteral("upscaleOverBudget")] = has_up_shader && gup.avg > up_budget;
 
     // --- Phase 2 : diagnostic HDR (source → sortie) ---
@@ -583,7 +594,7 @@ void Stats::writeCsv(const QVariantMap &s)
                "upscaler,upscale_factor,gpu_upscale_avg_ms,gpu_upscale_p99_ms,out_resolution,output,src_peak_nits,"
                "requested_bitrate_mbps,target_bitrate_mbps,"
                "fg_state,fps_gen,fg_pyr_ms,fg_flow_ms,fg_synth_ms,fg_cost_ms,fg_delay_ms,"
-               "fps_out_1pct_low,pacing_margin_ms,audio_delay_ms,fps_distinct\n";
+               "fps_out_1pct_low,pacing_margin_ms,audio_delay_ms,fps_distinct,gpu_denoise_avg_ms\n";
         emit csvLoggingChanged();
     }
     const double t = ((int64_t)chiaki_time_now_monotonic_us() - session_start_us) / 1e6;
@@ -602,7 +613,7 @@ void Stats::writeCsv(const QVariantMap &s)
         << f("requestedBitrate") << ',' << f("targetBitrate") << ','
         << str("fgState") << ',' << f("fpsGen") << ',' << f("fgPyrMs") << ',' << f("fgFlowMs") << ','
         << f("fgSynthMs") << ',' << f("fgCostMs") << ',' << f("fgDelayMs") << ','
-        << f("fpsOut1Low") << ',' << f("pacingMarginMs") << ',' << f("audioDelayMs") << ',' << f("fpsDistinct") << '\n';
+        << f("fpsOut1Low") << ',' << f("pacingMarginMs") << ',' << f("audioDelayMs") << ',' << f("fpsDistinct") << ',' << f("gpuDenoiseAvg") << '\n';
     out.flush();
 }
 

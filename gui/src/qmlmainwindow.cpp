@@ -7617,10 +7617,14 @@ void QmlMainWindow::render()
                                                                  upscale_factor, chiaki_hook, fsrcnnx_hook_8);
         }
     }
-    const struct pl_hook *active_hooks[] = {fsrcnnx_hook};
-    if (fsrcnnx_hook) {
+    // FARPLAY: réduction d'artefacts avant l'upscaling (hooks dans l'ordre)
+    const struct pl_hook *active_hooks[2] = {};
+    const int farplay_num_hooks = farplay::Image::instance().buildHooks(fsrcnnx_hook, active_hooks);
+    if (farplay_num_hooks > 0) {
         params.hooks = active_hooks;
-        params.num_hooks = 1;
+        params.num_hooks = farplay_num_hooks;
+    }
+    if (fsrcnnx_hook) {
         switch (video_preset) {
         case VideoPreset::HighQualitySpatial:
             if (fsrcnnx_hook == fsr_hook)

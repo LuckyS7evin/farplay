@@ -5,7 +5,7 @@ name: Farplay frame gen (banc de test)
 on:
   push:
     branches: [main, 'claude/**']
-    paths: ['gui/src/farplay/**', 'gui/include/farplay/**', '.github/workflows/farplay-fgtest.yml']
+    paths: ['gui/src/farplay/**', 'gui/include/farplay/**', 'gui/res/farplay/shaders/**', '.github/workflows/farplay-fgtest.yml']
   pull_request:
     paths: ['gui/src/farplay/**', 'gui/include/farplay/**']
   workflow_dispatch:
@@ -30,3 +30,9 @@ jobs:
           ./fg_test 4 2
           ./fg_test 24 10
           ./fg_test 120 30
+      - name: Réduction d'artefacts
+        working-directory: gui/src/farplay/tests
+        run: |
+          g++ -std=c++17 -O2 deartifact_test.cpp $(pkg-config --cflags --libs libplacebo) -o deartifact_test
+          ./deartifact_test ../../../res/farplay/shaders/Deartifact.glsl 0.015
+          ./deartifact_test ../../../res/farplay/shaders/Deartifact.glsl 0.04

@@ -94,6 +94,12 @@ Rectangle {
                 text: "%1 · ×%2 → %3".arg(overlay.s.upscaler || "—").arg(overlay.s.upscaleFactor ? overlay.s.upscaleFactor.toFixed(2) : "—").arg(overlay.s.outResolution || "—")
             }
 
+            Key { text: "GPU anti-artefacts" }
+            Val {
+                text: overlay.s.denoiseOn ? "%1 · p99 %2".arg(overlay.ms(overlay.s.gpuDenoiseAvg)).arg(overlay.ms(overlay.s.gpuDenoiseP99)) : "coupé"
+                color: overlay.s.denoiseOn ? overlay.cIvory : overlay.cDim
+            }
+
             Key { text: "Images reçues" }
             Val { text: "%1 fps · %2 / p99 %3".arg(overlay.n1(overlay.s.fpsIn)).arg(overlay.ms(overlay.s.srcIntervalAvg)).arg(overlay.ms(overlay.s.srcIntervalP99)) }
 

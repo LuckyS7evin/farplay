@@ -27,6 +27,9 @@ class Image : public QObject
     Q_PROPERTY(int sharpness READ sharpness WRITE setSharpness NOTIFY changed)
     // Lissage des dégradés : 0 = coupé, 1 = faible (défaut), 2 = moyen
     Q_PROPERTY(int deband READ deband WRITE setDeband NOTIFY changed)
+    // Réduction des artefacts de compression (NLM sur la luminance, avant
+    // l'agrandissement) : 0 = coupée, 1 = faible, 2 = moyenne (défaut), 3 = forte
+    Q_PROPERTY(int denoise READ denoise WRITE setDenoise NOTIFY changed)
     // Afficher un flux SDR en HDR sur un écran HDR, avec luminosité de référence
     Q_PROPERTY(bool sdrToHdr READ sdrToHdr WRITE setSdrToHdr NOTIFY changed)
     Q_PROPERTY(int sdrWhiteNits READ sdrWhiteNits WRITE setSdrWhiteNits NOTIFY changed)
@@ -41,6 +44,8 @@ public:
     void setSharpness(int v);
     int deband() const { return deband_.load(std::memory_order_relaxed); }
     void setDeband(int v);
+    int denoise() const { return denoise_.load(std::memory_order_relaxed); }
+    void setDenoise(int v);
     bool sdrToHdr() const { return sdr_to_hdr_.load(std::memory_order_relaxed); }
     void setSdrToHdr(bool v);
     int sdrWhiteNits() const { return sdr_white_.load(std::memory_order_relaxed); }
@@ -56,6 +61,9 @@ public:
     const struct pl_hook *selectHook(bool source_pq, float upscale_factor,
                                      const struct pl_hook *chiaki_hook,
                                      const struct pl_hook *fsrcnnx8);
+    // Liste des hooks à appliquer, dans l'ordre : réduction d'artefacts puis
+    // upscaling. Renvoie le nombre de hooks écrits dans `out` (2 au plus).
+    int buildHooks(const struct pl_hook *upscale_hook, const struct pl_hook **out);
 
     // Ajuste les paramètres de rendu (lissage des dégradés).
     void applyRenderParams(struct pl_render_params *params);
@@ -79,6 +87,8 @@ private:
     std::atomic<int> upscaler_{1};
     std::atomic<int> sharpness_{70};
     std::atomic<int> deband_{1};
+    std::atomic<int> denoise_{2};
+    const struct pl_hook *deartifact_ = nullptr;
     std::atomic<bool> sdr_to_hdr_{true};
     std::atomic<int> sdr_white_{200};
 
