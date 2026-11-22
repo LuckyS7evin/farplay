@@ -172,9 +172,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
-          key: vcpkg-bin2-${{ env.triplet }}-${{ env.vcpkg_baseline }}-${{ hashFiles('vcpkg.json') }}
+          key: vcpkg-bin3-${{ env.triplet }}-${{ env.vcpkg_baseline }}-${{ hashFiles('vcpkg.json') }}
           restore-keys: |
-            vcpkg-bin2-${{ env.triplet }}-${{ env.vcpkg_baseline }}-
+            vcpkg-bin3-${{ env.triplet }}-${{ env.vcpkg_baseline }}-
 
       - name: Create vcpkg binary cache dir
         run: New-Item -ItemType Directory -Force -Path "${{ env.VCPKG_DEFAULT_BINARY_CACHE }}" | Out-Null
@@ -189,11 +189,11 @@ jobs:
           VCPKG_BINARY_SOURCES: "clear;files,${{ env.VCPKG_DEFAULT_BINARY_CACHE }},readwrite"
 
       - name: Save vcpkg binary archives
-        if: always() && steps.vcpkg-cache.outputs.cache-hit != 'true'
+        if: success() && steps.vcpkg-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
-          key: vcpkg-bin2-${{ env.triplet }}-${{ env.vcpkg_baseline }}-${{ hashFiles('vcpkg.json') }}
+          key: vcpkg-bin3-${{ env.triplet }}-${{ env.vcpkg_baseline }}-${{ hashFiles('vcpkg.json') }}
 
       - name: Build libplacebo
         if: steps.deps-cache.outputs.cache-hit != 'true'
