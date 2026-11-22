@@ -43,6 +43,7 @@ ColumnLayout {
             visible: sec.ps5
             divider: true
             title: "Codec vidéo"
+            description: Chiaki.session ? "S'applique à la prochaine connexion." : ""
             FpSegmented {
                 model: sec.openGl ? ["H.264", "H.265"] : ["H.264", "H.265", "H.265 HDR"]
                 currentIndex: Math.min(Chiaki.settings.codecRemotePS5, sec.openGl ? 1 : 2)

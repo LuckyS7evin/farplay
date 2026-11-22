@@ -345,7 +345,7 @@ FocusScope {
                             visible: page.ps5Sel
                             divider: true
                             title: "Codec vidéo"
-                            description: "H.265 est plus efficace. H.265 HDR demande un écran HDR."
+                            description: "H.265 est plus efficace. H.265 HDR demande un écran HDR." + (Chiaki.session ? " S'applique à la prochaine connexion." : "")
                             FpSegmented {
                                 readonly property bool gl: Chiaki.settings.rendererBackend === 1
                                 model: gl ? ["H.264", "H.265"] : ["H.264", "H.265", "H.265 HDR"]
@@ -498,7 +498,7 @@ FocusScope {
                     FpSectionCard {
                         iconName: "display"
                         title: "HDR"
-                        subtitle: "Demande un flux HDR à la PS5. Il faut que la console voie un écran HDR."
+                        subtitle: "Demande un flux HDR à la PS5. Il faut que la console voie un écran HDR." + (Chiaki.session ? " S'applique à la prochaine connexion." : "")
                         costs: ({ image: "+" })
                         hasToggle: true
                         checked: Chiaki.settings.codecLocalPS5 === 2
