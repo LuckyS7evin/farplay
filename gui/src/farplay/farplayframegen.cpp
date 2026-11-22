@@ -108,8 +108,12 @@ void FrameGen::setPacing(bool v)
     }
 }
 
-void FrameGen::noteSourceArrival(int64_t now_us, double pts_s)
+void FrameGen::noteSourceArrival(int64_t now_us, double pts_s, bool lost)
 {
+    // A (affichée) et B (suivante) ont un retard d'environ une image : l'image
+    // corrompue sera B puis A ; on tient sur les 3 prochaines images affichées.
+    if (lost)
+        loss_hold_.store(3, std::memory_order_relaxed);
     const double offset = now_us / 1e6 - pts_s;
     // Saut du pts (nouvelle session, remise à zéro du flux) : on repart de zéro.
     if (num_arrivals_ > 0 && std::fabs(offset - last_offset_) > 1.0) {
@@ -231,6 +235,15 @@ bool FrameGen::render(pl_renderer renderer, const struct pl_frame_mix *mix,
     const float tb = static_cast<float>(mix->timestamps[ib]);
     float t = (interp && tb > ta) ? -ta / (tb - ta) : 0.0f;
     t = std::clamp(t, 0.0f, 0.999f);
+    if (interp && mix->signatures[ia] != hold_sig_) {
+        hold_sig_ = mix->signatures[ia];
+        int pending = loss_hold_.load(std::memory_order_relaxed);
+        holding_ = pending > 0;
+        if (holding_)
+            loss_hold_.compare_exchange_strong(pending, pending - 1, std::memory_order_relaxed);
+    }
+    if (holding_)
+        t = 0.0f; // perte récente : image reçue seule, sans interpolation
     const int mult = multiplier();
     if (mult >= 2)
         t = std::floor(t * mult) / mult;

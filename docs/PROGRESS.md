@@ -125,3 +125,11 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - Netteté recommandée 50 % (avec l'anti-artefacts). Anti-artefacts mesuré à 0,17 ms sur 9070 XT.
 - Nouveau : `ChromaFromLuma.glsl` (chroma 4:2:0 reconstruite par régression locale sur la luminance, bornée) : +2 à +3 dB sur bords colorés (test `chroma_test`, sites centre/gauche). Réglage « Couleurs nettes », actif par défaut.
 - HDR : le flux H.265 HDR est en PQ même console en SDR ; le diagnostic décrit le signal, pas le contenu.
+
+### Comparaison Asobi / PushFPS / smoovplay (22/11)
+- smoovplay (MIT, chiaki-ng 1.10 patché + Python/PyTorch/TensorRT, RIFE ~9 ms sur RTX 4070 Ti S, NVIDIA d'abord) : idées retenues — pas d'interpolation après perte de paquets (fait : `loss_hold_`, 3 images), maintien sur changement de plan (à faire après test phase 3), détection des images répétées par taille compressée (utile seulement pour un flux 60 Hz portant du 30 fps), ligne à retard audio à correction douce (plus tard), outil de mesure de latence par injection de bouton (utile pour l'acceptation ≤ 33 ms).
+- Asobi (propriétaire, payant) : FG « linear »/« flow », HDR 1080p60, haptique ; idées seulement.
+- Aucun des trois n'obtient plus que 1080p de la PS5.
+### Nettoyage / CI
+- Retour à l'original de `SettingsDialog.qml` (anciennes lignes Farplay, écran devenu inaccessible) ; vue chiaki-ng retirée de Main.qml. Suppression des fichiers QML chiaki inutilisés reportée à la fin de la phase 4 (fichiers upstream : les supprimer complique les fusions avec chiaki-ng, et l'interface bouge encore).
+- Artefact Windows : dossier envoyé tel quel (un seul zip au téléchargement). README Farplay avec logo et captures.

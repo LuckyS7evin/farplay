@@ -261,17 +261,12 @@ jobs:
           cp "${{ github.workspace }}\${{ env.dep_folder }}\bin\spirv-cross-c-shared.dll" Farplay-Win
           windeployqt.exe --no-translations --qmldir=gui\src\qml --release Farplay-Win\farplay.exe
 
-      - name: Package Farplay
-        run: |
-          $RELEASE_PACKAGE_FILE = "farplay-win64-${{ env.SHORT_SHA }}.zip"
-          Compress-Archive Farplay-Win $RELEASE_PACKAGE_FILE
-          $release_filepath = Get-ChildItem $RELEASE_PACKAGE_FILE | %{$_[0].FullName}
-          echo "RELEASE_PACKAGE_PATH=$release_filepath" | Out-File -FilePath $Env:GITHUB_ENV -Encoding utf8 -Append
-
+      # Le dossier est envoyé tel quel : GitHub le zippe une seule fois au
+      # téléchargement (plus de zip dans le zip).
       - name: Upload Farplay Artifact
         uses: actions/upload-artifact@v7
         with:
           name: farplay-win64-${{ env.SHORT_SHA }}
-          path: ${{ env.RELEASE_PACKAGE_PATH }}
+          path: Farplay-Win
           if-no-files-found: error
           retention-days: 7

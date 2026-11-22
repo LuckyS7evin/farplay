@@ -163,10 +163,6 @@ Item {
             stack.push("qrc:/farplay/ui/FarplaySettings.qml", {section: section || ""});
     }
 
-    function showChiakiMainView() {
-        stack.push(chiakiMainViewComponent);
-    }
-
     function farplayWizardDone() {
         Farplay.setFirstLaunchDone();
         stack.replace(stack.get(0), mainViewComponent);
@@ -572,11 +568,6 @@ Item {
             focus: true
             source: Farplay.firstLaunch ? "qrc:/farplay/ui/FarplayWizard.qml" : "qrc:/farplay/ui/FarplayHome.qml"
         }
-    }
-
-    Component {
-        id: chiakiMainViewComponent
-        MainView { }
     }
 
     Component {

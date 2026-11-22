@@ -3018,7 +3018,7 @@ void QmlMainWindow::presentFrame(ChiakiFfmpegFrame frame, int32_t frames_lost, q
 {
     const qint64 present_entry_us = static_cast<qint64>(chiaki_time_now_monotonic_us());
     farplay::Stats::instance().onSourceFrame(frame.frame); // FARPLAY: image source reçue
-    farplay::FrameGen::instance().noteSourceArrival(present_entry_us, frame.pts); // FARPLAY: horloge d'affichage et gigue
+    farplay::FrameGen::instance().noteSourceArrival(present_entry_us, frame.pts, frames_lost > 0); // FARPLAY: horloge, gigue, pertes
     if (decoder_delivery_us > 0 && present_entry_us >= decoder_delivery_us) {
         const qint64 gui_handoff_us = present_entry_us - decoder_delivery_us;
         if (gui_handoff_us >= 12000) {

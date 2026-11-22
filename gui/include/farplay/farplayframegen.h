@@ -57,7 +57,9 @@ public:
 
     // Arrivée d'une image source (thread décodage) : horodatage d'arrivée et
     // pts du flux (s). Alimente l'horloge d'affichage et l'estimation de la gigue.
-    void noteSourceArrival(int64_t now_us, double pts_s);
+    // `lost` : des images ont été perdues juste avant celle-ci (paquets manquants) ;
+    // l'image et les suivantes peuvent être corrompues jusqu'à la reprise du flux.
+    void noteSourceArrival(int64_t now_us, double pts_s, bool lost = false);
     // Horloge d'affichage (thread de rendu) : pts relatif à la file à viser
     // pour la vsync courante, calé sur l'arrivée la plus précoce récente
     // (insensible à la dérive entre l'horloge de la PS5 et celle du PC).
@@ -120,6 +122,11 @@ private:
     uint64_t last_sig_a_ = 0, last_sig_b_ = 0;
     float last_t_ = -1.0f;
     pl_tex last_show_ = nullptr;
+    // Après une perte : pas d'interpolation pendant quelques images reçues
+    // (on affiche l'image reçue telle quelle plutôt que d'étaler les défauts).
+    std::atomic<int> loss_hold_{0};
+    uint64_t hold_sig_ = 0;
+    bool holding_ = false;
 };
 
 } // namespace farplay
