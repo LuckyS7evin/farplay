@@ -133,3 +133,4 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 ### Nettoyage / CI
 - Retour à l'original de `SettingsDialog.qml` (anciennes lignes Farplay, écran devenu inaccessible) ; vue chiaki-ng retirée de Main.qml. Suppression des fichiers QML chiaki inutilisés reportée à la fin de la phase 4 (fichiers upstream : les supprimer complique les fusions avec chiaki-ng, et l'interface bouge encore).
 - Artefact Windows : dossier envoyé tel quel (un seul zip au téléchargement). README Farplay avec logo et captures.
+- Nixani (23/11) : `nixani-engine` (AGPL) n'est qu'un wrapper headless de libchiaki (stdin/stdout, protocole MIT) ; le client NixaniPSN est fermé (gratuit, bêta). Annonces sans preuves : FG x2–x6 tout GPU, DLSS/FSR 4.1/XeSS/RTX VSR, ReShade, polling USB 8 kHz. Rien d'exploitable côté image ; à reprendre éventuellement : compteurs FEC/keyframes dans les stats.
