@@ -213,7 +213,6 @@ FocusScope {
                     inputMethodHints: Qt.ImhDigitsOnly
                     validator: RegularExpressionValidator { regularExpression: /[0-9]{0,4}/ }
                     onAccepted: pinOk.clicked()
-                    KeyNavigation.down: pinOk
                     Keys.onEscapePressed: pinCancel.clicked()
                 }
                 RowLayout {
@@ -224,8 +223,6 @@ FocusScope {
                         id: pinCancel
                         text: "Annuler"
                         onClicked: { view.closePin(); Chiaki.stopSession(false) }
-                        KeyNavigation.right: pinOk
-                        KeyNavigation.up: pinField
                     }
                     FpButton {
                         id: pinOk
@@ -233,8 +230,6 @@ FocusScope {
                         text: "Valider"
                         enabled: pinField.text.length === 4 && pinField.acceptable
                         onClicked: { if (!enabled) return; Chiaki.enterPin(pinField.text); view.closePin() }
-                        KeyNavigation.left: pinCancel
-                        KeyNavigation.up: pinField
                     }
                 }
             }

@@ -88,26 +88,47 @@ QtObject {
         }
         return out
     }
+    // Up/Down never leave a "group" (an ancestor with `property bool fpNavGroup: true`, e.g. the sidebar).
+    function navGroup(it, root) {
+        for (var p = it; p && p !== root; p = p.parent)
+            if (p.fpNavGroup === true) return p
+        return null
+    }
+    // Rect of `it` in `root` coordinates, as if every enclosing Flickable were scrolled to its top
+    // (scrolled content slides under fixed headers; the layout order must not depend on the scroll).
     function navRect(it, root) {
-        var p = it.mapToItem(root, 0, 0)
-        return { x: p.x, y: p.y, w: it.width, h: it.height, cx: p.x + it.width / 2, cy: p.y + it.height / 2 }
+        var fl = it.parent
+        while (fl && fl !== root && fl.contentY === undefined) fl = fl.parent
+        var x, y
+        if (fl && fl !== root && fl.contentItem) {
+            var p = it.mapToItem(fl.contentItem, 0, 0)
+            var f0 = fl.mapToItem(root, 0, 0)
+            x = f0.x + p.x - fl.contentX
+            y = f0.y + p.y
+        } else {
+            var q = it.mapToItem(root, 0, 0)
+            x = q.x; y = q.y
+        }
+        return { x: x, y: y, w: it.width, h: it.height, cx: x + it.width / 2, cy: y + it.height / 2 }
     }
     // Next focusable item from `cur` in direction "up" | "down" | "left" | "right" (or null).
-    function navNext(cur, dir, root) {
+    function navNext(cur, dir, root, sameGroup) {
         var cr = navRect(cur, root)
         var list = navTargets(root, [])
+        var grp = navGroup(cur, root)
         var best = null, bestScore = 1e12
         for (var i = 0; i < list.length; i++) {
             var c = list[i]
             if (c === cur) continue
+            if (sameGroup && navGroup(c, root) !== grp) continue
             var r = navRect(c, root)
             var score
             if (dir === "up" || dir === "down") {
                 var d = (r.cy - cr.cy) * (dir === "down" ? 1 : -1)
                 var ov = Math.min(cr.y + cr.h, r.y + r.h) - Math.max(cr.y, r.y)
-                if (d < 4 || ov > 0.5 * Math.min(cr.h, r.h)) continue
+                if (d < 4 || ov > 0.5 * Math.min(cr.h, r.h) || navGroup(c, root) !== grp) continue
                 var gap = Math.max(0, r.x - (cr.x + cr.w), cr.x - (r.x + r.w))
-                score = d + gap * 2 + Math.abs(r.cx - cr.cx) * 0.3
+                score = d + gap * 3 + Math.abs(r.cx - cr.cx) * 0.05
             } else {
                 var dx = (r.cx - cr.cx) * (dir === "right" ? 1 : -1)
                 var ovy = Math.min(cr.y + cr.h, r.y + r.h) - Math.max(cr.y, r.y)
@@ -119,12 +140,12 @@ QtObject {
         return best
     }
     // Moves the focus; returns true when it moved.
-    function navMove(win, dir) {
+    function navMove(win, dir, sameGroup) {
         var cur = win ? win.activeFocusItem : null
         if (!cur) return false
         var root = navRoot(cur)
         if (!root) return false
-        var n = navNext(cur, dir, root)
+        var n = navNext(cur, dir, root, sameGroup)
         if (!n) return false
         n.forceActiveFocus(dir === "up" || dir === "left" ? Qt.BacktabFocusReason : Qt.TabFocusReason)
         return true

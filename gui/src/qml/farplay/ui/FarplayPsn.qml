@@ -200,14 +200,12 @@ FpPage {
                 text: "Recharger et effacer les cookies"
                 fontSize: Theme.small + 1
                 onClicked: reloadTimer.start()
-                KeyNavigation.right: extBtn
             }
             FpButton {
                 id: extBtn
                 text: "Navigateur externe"
                 fontSize: Theme.small + 1
                 onClicked: page.useExternal()
-                KeyNavigation.left: reloadBtn
             }
             Item { Layout.fillWidth: true }
             Rectangle {
@@ -277,8 +275,6 @@ FpPage {
                     text: "Copier à nouveau le lien"
                     fontSize: Theme.small + 1
                     onClicked: openUrl.copyText()
-                    KeyNavigation.down: redirectField
-                    KeyNavigation.right: webBtn
                 }
                 FpButton {
                     id: webBtn
@@ -286,8 +282,6 @@ FpPage {
                     text: "Utiliser la fenêtre intégrée"
                     fontSize: Theme.small + 1
                     onClicked: { page.external = false; reloadBtn.forceActiveFocus() }
-                    KeyNavigation.down: redirectField
-                    KeyNavigation.left: copyBtn
                 }
             }
             FpTextField {
@@ -296,7 +290,6 @@ FpPage {
                 placeholder: "https://remoteplay.dl.playstation.net/…"
                 secret: true
                 onAccepted: page.submitRedirect()
-                KeyNavigation.down: pasteBtn
             }
             Text {
                 Layout.fillWidth: true
@@ -313,8 +306,6 @@ FpPage {
                     id: pasteBtn
                     text: "Coller"
                     onClicked: redirectField.paste()
-                    KeyNavigation.up: redirectField
-                    KeyNavigation.right: submitBtn
                 }
                 Item { Layout.fillWidth: true }
                 FpButton {
@@ -325,8 +316,6 @@ FpPage {
                     text: page.mode === "token" ? "Connecter" : "Récupérer l'identifiant"
                     enabled: redirectField.hasText && !page.submitting
                     onClicked: page.submitRedirect()
-                    KeyNavigation.up: redirectField
-                    KeyNavigation.left: pasteBtn
                 }
             }
         }
@@ -359,7 +348,6 @@ FpPage {
                 placeholder: "pseudo"
                 secret: true
                 onAccepted: page.lookup()
-                KeyNavigation.down: lookupGo
             }
             Text {
                 Layout.fillWidth: true
@@ -379,7 +367,6 @@ FpPage {
                     text: page.lookupBusy ? "Recherche…" : "Rechercher"
                     enabled: usernameField.hasText && !page.lookupBusy
                     onClicked: page.lookup()
-                    KeyNavigation.up: usernameField
                 }
             }
         }

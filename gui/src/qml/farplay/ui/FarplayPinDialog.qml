@@ -57,7 +57,6 @@ FarplayDialogCard {
                 validator: RegularExpressionValidator { regularExpression: /[0-9]{4}/ }
                 Keys.onReturnPressed: if (acceptableInput) root.pinEntered(text)
                 Keys.onEnterPressed: if (acceptableInput) root.pinEntered(text)
-                KeyNavigation.down: okBtn
             }
             MouseArea { anchors.fill: parent; onClicked: pinInput.forceActiveFocus() }
         }
@@ -70,8 +69,6 @@ FarplayDialogCard {
                 id: cancelBtn
                 text: "Annuler"
                 onClicked: root.cancelled()
-                KeyNavigation.right: okBtn
-                KeyNavigation.up: pinInput
             }
             FpButton {
                 id: okBtn
@@ -79,8 +76,6 @@ FarplayDialogCard {
                 text: "Valider"
                 enabled: root.valid
                 onClicked: root.pinEntered(pinInput.text)
-                KeyNavigation.left: cancelBtn
-                KeyNavigation.up: pinInput
             }
         }
     }

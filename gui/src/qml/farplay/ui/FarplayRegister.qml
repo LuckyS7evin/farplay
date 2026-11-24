@@ -80,7 +80,6 @@ FpPage {
                 hint: "255.255.255.255 pour la chercher automatiquement sur le réseau."
                 placeholder: "192.168.1.42"
                 secret: true
-                KeyNavigation.down: typeSeg
             }
 
             ColumnLayout {
@@ -98,8 +97,6 @@ FpPage {
                     model: ["PS5", "PS4 ≥ 8.0", "PS4 7.x", "PS4 < 7.0"]
                     currentIndex: page.targetIndex
                     onActivated: (i) => page.targetIndex = i
-                    KeyNavigation.up: hostField
-                    KeyNavigation.down: page.needsOnlineId ? onlineIdField : accountIdField
                 }
             }
 
@@ -122,7 +119,6 @@ FpPage {
                     hint: "Chaîne en base64, propre à votre compte."
                     placeholder: "base64"
                     secret: true
-                    KeyNavigation.down: psnLoginBtn.visible ? psnLoginBtn : pinField
                 }
                 RowLayout {
                     visible: !Chiaki.settings.psnAccountId
@@ -132,18 +128,12 @@ FpPage {
                         text: "Connexion PSN"
                         fontSize: Theme.small + 1
                         onClicked: root.showFarplayView("qrc:/farplay/ui/FarplayPsn.qml", { mode: "login", callback: (id) => accountIdField.text = id })
-                        KeyNavigation.up: accountIdField
-                        KeyNavigation.right: lookupBtn
-                        KeyNavigation.down: pinField
                     }
                     FpButton {
                         id: lookupBtn
                         text: "Recherche publique"
                         fontSize: Theme.small + 1
                         onClicked: root.showFarplayView("qrc:/farplay/ui/FarplayPsn.qml", { mode: "lookup", callback: (id) => accountIdField.text = id })
-                        KeyNavigation.up: accountIdField
-                        KeyNavigation.left: psnLoginBtn
-                        KeyNavigation.down: pinField
                     }
                 }
             }

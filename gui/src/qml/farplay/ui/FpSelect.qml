@@ -14,8 +14,17 @@ ComboBox {
 
     // Closed: Up/Down move to the neighbouring control (ComboBox would change its value);
     // Left/Right change the value. Open: the popup list is driven by the ComboBox itself.
-    Keys.onReturnPressed: (e) => { if (popup.visible) e.accepted = false; else popup.open() }
-    Keys.onEnterPressed: (e) => { if (popup.visible) e.accepted = false; else popup.open() }
+    // The popup opens on key *release*: ComboBox closes an open popup on the Return release, and
+    // the controller layer sends press+release back to back.
+    property bool openOnRelease: false
+    Keys.onReturnPressed: (e) => { if (popup.visible) e.accepted = false; else openOnRelease = true }
+    Keys.onEnterPressed: (e) => { if (popup.visible) e.accepted = false; else openOnRelease = true }
+    Keys.onReleased: (e) => {
+        if (openOnRelease && (e.key === Qt.Key_Return || e.key === Qt.Key_Enter)) {
+            openOnRelease = false
+            Qt.callLater(popup.open)
+        } else e.accepted = false
+    }
     Keys.onUpPressed: (e) => { if (popup.visible) e.accepted = false; else Theme.navMove(root.Window.window, "up") }
     Keys.onDownPressed: (e) => { if (popup.visible) e.accepted = false; else Theme.navMove(root.Window.window, "down") }
     Keys.onLeftPressed: (e) => { if (popup.visible) e.accepted = false; else if (currentIndex > 0) { currentIndex = currentIndex - 1; activated(currentIndex) } else e.accepted = false }

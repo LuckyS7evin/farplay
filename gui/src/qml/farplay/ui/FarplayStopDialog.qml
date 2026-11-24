@@ -25,14 +25,11 @@ FarplayDialogCard {
             text: "Mettre en veille"
             iconName: "moon"
             onClicked: root.sleepRequested()
-            KeyNavigation.right: keepBtn
         }
         FpButton {
             id: keepBtn
             text: "Laisser allumée"
             onClicked: root.keepOnRequested()
-            KeyNavigation.left: sleepBtn
-            KeyNavigation.right: cancelBtn
         }
         Item { Layout.fillWidth: true }
         FpButton {
@@ -40,7 +37,6 @@ FarplayDialogCard {
             flat: true
             text: "Annuler"
             onClicked: root.cancelRequested()
-            KeyNavigation.left: keepBtn
         }
     }
 }

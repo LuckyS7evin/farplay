@@ -25,13 +25,11 @@ ColumnLayout {
                     iconName: "plus"
                     text: "Appairer"
                     onClicked: root.showRegistDialog("255.255.255.255", true)
-                    KeyNavigation.right: ipBtn
                 }
                 FpButton {
                     id: ipBtn
                     text: "Par adresse IP"
                     onClicked: root.showManualHostDialog()
-                    KeyNavigation.left: pairBtn
                 }
             }
         }
@@ -56,7 +54,6 @@ ColumnLayout {
                         focus: true
                         checked: Chiaki.settings.autoConnectMac === reg.modelData.mac
                         onToggled: (c) => Chiaki.settings.autoConnectMac = c ? reg.modelData.mac : ""
-                        KeyNavigation.right: delBtn
                     }
                     FpButton {
                         id: delBtn
@@ -98,7 +95,6 @@ ColumnLayout {
                         focus: true
                         text: "Code PIN"
                         onClicked: root.showConsolePinDialog(hostRow.index)
-                        KeyNavigation.right: rmBtn
                     }
                     FpButton {
                         id: rmBtn

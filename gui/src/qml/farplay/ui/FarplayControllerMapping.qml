@@ -169,7 +169,6 @@ FpPage {
                 id: analogSwitch
                 checked: Chiaki.enableAnalogStickMapping
                 onToggled: (c) => Chiaki.enableAnalogStickMapping = c
-                KeyNavigation.down: rows.itemAt(0) ? rows.itemAt(0).b0 : null
             }
         }
 
@@ -211,10 +210,6 @@ FpPage {
                             fontSize: Theme.small + 1
                             text: row.modelData.physicalButton.length > 0 ? row.modelData.physicalButton[0] : "—"
                             onClicked: page.openCapture(row.modelData.buttonValue, 0, row.index)
-                            KeyNavigation.right: b1
-                            Keys.onUpPressed: { var r = rows.itemAt(row.index - 2); if (r) r.b0.forceActiveFocus(); else analogSwitch.forceActiveFocus() }
-                            Keys.onDownPressed: { var r = rows.itemAt(row.index + 2); if (r) r.b0.forceActiveFocus() }
-                            Keys.onLeftPressed: (e) => { var r = (row.index % 2 === 1) ? rows.itemAt(row.index - 1) : null; if (r) r.b1.forceActiveFocus(); else e.accepted = false }
                         }
                         FpButton {
                             id: b1
@@ -222,10 +217,6 @@ FpPage {
                             fontSize: Theme.small + 1
                             text: row.modelData.physicalButton.length > 1 ? row.modelData.physicalButton[1] : "—"
                             onClicked: page.openCapture(row.modelData.buttonValue, 1, row.index)
-                            KeyNavigation.left: b0
-                            Keys.onUpPressed: { var r = rows.itemAt(row.index - 2); if (r) r.b1.forceActiveFocus(); else analogSwitch.forceActiveFocus() }
-                            Keys.onDownPressed: { var r = rows.itemAt(row.index + 2); if (r) r.b1.forceActiveFocus() }
-                            Keys.onRightPressed: (e) => { var r = (row.index % 2 === 0) ? rows.itemAt(row.index + 1) : null; if (r) r.b0.forceActiveFocus(); else e.accepted = false }
                         }
                     }
                 }

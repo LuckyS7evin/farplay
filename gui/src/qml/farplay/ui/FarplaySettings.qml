@@ -84,6 +84,7 @@ FocusScope {
     // ── Sidebar ────────────────────────────────────────────────────────────
     FocusScope {
         id: sidebar
+        readonly property bool fpNavGroup: true
         width: 280
         anchors.top: parent.top
         anchors.bottom: footer.top
@@ -108,9 +109,12 @@ FocusScope {
 
         Flickable {
             id: sideFlick
-            x: Theme.unit * 2
-            y: 88
-            width: parent.width - Theme.unit * 4
+            anchors.top: parent.top
+            anchors.topMargin: 88
+            anchors.left: parent.left
+            anchors.leftMargin: Theme.unit * 2
+            anchors.right: parent.right
+            anchors.rightMargin: Theme.unit * 2
             anchors.bottom: hostCard.visible ? hostCard.top : parent.bottom
             anchors.bottomMargin: Theme.unit
             contentWidth: width
@@ -122,24 +126,24 @@ FocusScope {
                 id: sideCol
                 width: parent.width
                 spacing: 4
-            Repeater {
-                id: sideRepeater
-                model: page.cats
-                delegate: FpSidebarItem {
-                    required property var modelData
-                    required property int index
-                    width: parent.width
-                    text: modelData.text
-                    iconName: modelData.icon
-                    current: !modelData.action && page.cat === index
-                    onActiveFocusChanged: if (activeFocus && !modelData.action) page.cat = index
-                    onActivated: page.activateCat(index)
-                    Keys.onUpPressed: { var it = sideRepeater.itemAt(index - 1); if (it) it.forceActiveFocus() }
-                    Keys.onDownPressed: { var it = sideRepeater.itemAt(index + 1); if (it) it.forceActiveFocus() }
-                    Keys.onRightPressed: { if (!modelData.action) page.focusContent() }
+                Repeater {
+                    id: sideRepeater
+                    model: page.cats
+                    delegate: FpSidebarItem {
+                        required property var modelData
+                        required property int index
+                        width: parent.width
+                        text: modelData.text
+                        iconName: modelData.icon
+                        current: !modelData.action && page.cat === index
+                        onActiveFocusChanged: if (activeFocus && !modelData.action) page.cat = index
+                        onActivated: page.activateCat(index)
+                        Keys.onUpPressed: { var it = sideRepeater.itemAt(index - 1); if (it) it.forceActiveFocus() }
+                        Keys.onDownPressed: { var it = sideRepeater.itemAt(index + 1); if (it) it.forceActiveFocus() }
+                        Keys.onRightPressed: { if (!modelData.action) page.focusContent() }
+                    }
                 }
             }
-        }
         }
 
         // Current console
@@ -189,13 +193,14 @@ FocusScope {
     // ── Content ────────────────────────────────────────────────────────────
     FocusScope {
         id: contentScope
+        readonly property bool fpNavGroup: true
         anchors.left: sidebar.right
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: pipeline.visible ? pipeline.top : footer.top
         anchors.bottomMargin: pipeline.visible ? Theme.unit * 2 : 0
 
-        Keys.onLeftPressed: { if (!Theme.navMove(page.Window.window, "left")) page.focusSidebar() }
+        Keys.onLeftPressed: { if (!Theme.navMove(page.Window.window, "left", true)) page.focusSidebar() }
 
         readonly property real colWidth: Math.min(width - Theme.unit * 10, 1040)
         readonly property real colX: Math.max(Theme.unit * 5, (width - colWidth) / 2)
@@ -622,7 +627,6 @@ FocusScope {
                                     inputMethodHints: Qt.ImhDigitsOnly
                                     validator: IntValidator { bottom: 0; top: 9999 }
                                     onEditingFinished: Chiaki.settings.customResolutionWidth = cw.acceptable ? parseInt(cw.text) || 0 : 0
-                                    KeyNavigation.right: ch
                                 }
                                 Text { text: "×"; font.family: Theme.ui; font.pixelSize: Theme.body; color: Theme.dim }
                                 FpTextField {
@@ -633,7 +637,6 @@ FocusScope {
                                     inputMethodHints: Qt.ImhDigitsOnly
                                     validator: IntValidator { bottom: 0; top: 9999 }
                                     onEditingFinished: Chiaki.settings.customResolutionHeight = ch.acceptable ? parseInt(ch.text) || 0 : 0
-                                    KeyNavigation.left: cw
                                 }
                             }
                         }
@@ -785,13 +788,11 @@ FocusScope {
                                     focus: true
                                     text: "Exporter"
                                     onClicked: Chiaki.settings.exportSettings()
-                                    KeyNavigation.right: impBtn
                                 }
                                 FpButton {
                                     id: impBtn
                                     text: "Importer"
                                     onClicked: Chiaki.settings.importSettings()
-                                    KeyNavigation.left: expBtn
                                 }
                             }
                         }

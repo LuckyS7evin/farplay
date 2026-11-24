@@ -60,13 +60,11 @@ ColumnLayout {
                     focus: true
                     text: "Modifier"
                     onClicked: root.showControllerMappingDialog()
-                    KeyNavigation.right: mapReset
                 }
                 FpButton {
                     id: mapReset
                     text: "Réinitialiser"
                     onClicked: root.showFarplayView("qrc:/farplay/ui/FarplayControllerMapping.qml", { reset: true })
-                    KeyNavigation.left: mapBtn
                 }
             }
         }
