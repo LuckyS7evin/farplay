@@ -3091,8 +3091,13 @@ void QmlMainWindow::presentFrame(ChiakiFfmpegFrame frame, int32_t frames_lost, q
             startup_first_real_frame_queued_pending_visibility.storeRelease(1);
     };
     bool defer_queue_reset = false;
+    // FARPLAY: présentation cadencée (frame gen, lissage) : l'image doit entrer dans la
+    // file dès son arrivée ; le rendu ne garde le verrou que le temps de pl_queue_update, on l'attend
+    // donc quelques ms au lieu de mettre l'image de côté.
+    const bool farplay_timed = farplay::FrameGen::instance().timedPresentation();
     if (!synthetic_warmup_frame) {
-        if (!placebo_state_mutex.tryLock()) {
+        // attente bornée (pas de blocage possible) plutôt qu'un échec immédiat
+        if (!placebo_state_mutex.tryLock(farplay_timed ? 5 : 0)) {
             if (storePendingFrame(frame, true, synthetic_warmup_frame)) {
                 snapshotPendingFrame();
                 armStartupVisibility();
@@ -3213,7 +3218,8 @@ void QmlMainWindow::presentFrame(ChiakiFfmpegFrame frame, int32_t frames_lost, q
         const int tolerated_depth = submission_depth_limit + (pending_exists ? 1 : 0);
         depth_exceeded = depth >= tolerated_depth;
         has_capacity_snapshot = depth < submission_depth_limit;
-        promote_eligible_snapshot = !render_pipeline_busy && pending_exists && has_capacity_snapshot;
+        promote_eligible_snapshot = (!render_pipeline_busy || farplay_timed) // FARPLAY: pas d'image retenue
+            && pending_exists && has_capacity_snapshot;
         updateQueueDepthAverage(depth);
         if (promote_eligible_snapshot) {
             QMutexLocker pending_locker(&pending_frame_mutex);
@@ -3343,7 +3349,19 @@ void QmlMainWindow::presentFrame(ChiakiFfmpegFrame frame, int32_t frames_lost, q
                                      render_busy,
                                      true);
         }
-        if (storePendingFrame(frame, true, synthetic_warmup_frame)) {
+        // FARPLAY: présentation cadencée : l'image courante entre aussi dans la file
+        // (sinon elle n'y entrerait qu'à l'arrivée de la suivante, 1 image trop tard).
+        if (farplay_timed && !synthetic_warmup_frame) {
+            QMutexLocker locker(&placebo_state_mutex);
+            if (pl_queue_num_frames(placebo_queue) < submission_depth_limit) {
+                pl_queue_push(placebo_queue, &src_frame);
+                queue_depth_cached.storeRelease(pl_queue_num_frames(placebo_queue));
+                newest_queued_frame_pts = qMax(newest_queued_frame_pts, frame.pts);
+                frame.frame = nullptr; // appartient désormais à la file
+                armStartupVisibility();
+            }
+        }
+        if (frame.frame && storePendingFrame(frame, true, synthetic_warmup_frame)) {
             snapshotPendingFrame();
             armStartupVisibility();
         }
@@ -5179,6 +5197,12 @@ renderer_backend_ready:
             farplay_top_grab = false;
             releaseInput();
             farplay::Stats::instance().setTopBarActive(false);
+        }
+        if (s) { // FARPLAY: curseur masqué peu après le début de la partie, même sans bouger la souris
+            QTimer::singleShot(3000, this, [this]() {
+                if (session && has_video && !grab_input)
+                    setCursor(Qt::BlankCursor);
+            });
         }
         const bool preserve_startup_warmup = s && startup_warmup_preserve_next_session_change;
         startup_warmup_preserve_next_session_change = false;
@@ -7814,6 +7838,22 @@ bool QmlMainWindow::event(QEvent *event)
         // FARPLAY: barre du haut en jeu. La souris en haut de l'écran est captée par
         // l'interface (curseur visible, la PS5 ne la reçoit pas) ; elle est rendue en
         // redescendant sous la barre.
+        // FARPLAY: en jeu, le curseur réapparaît quand la souris bouge et se masque
+        // après 2,5 s d'immobilité (sauf si l'interface a la main).
+        if (session && has_video) {
+            if (!farplay_cursor_timer) {
+                farplay_cursor_timer = new QTimer(this);
+                farplay_cursor_timer->setSingleShot(true);
+                farplay_cursor_timer->setInterval(2500);
+                connect(farplay_cursor_timer, &QTimer::timeout, this, [this]() {
+                    if (session && has_video && !grab_input)
+                        setCursor(Qt::BlankCursor);
+                });
+            }
+            if (cursor().shape() == Qt::BlankCursor)
+                setCursor(Qt::ArrowCursor);
+            farplay_cursor_timer->start();
+        }
         if (event->type() == QEvent::MouseMove) {
             const qreal farplay_y = static_cast<QMouseEvent*>(event)->position().y();
             if (!session || !has_video) {

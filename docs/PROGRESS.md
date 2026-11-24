@@ -142,3 +142,9 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - FG toujours en attente ~100 % hors menu (fonctionne menu ouvert). Mécanisme reproduit en test : si `pl_queue_update` n'est pas appelé à chaque vsync, libplacebo estime la vsync ≈ durée d'image et, avec `interpolation_threshold` 0,01, ne rend qu'une image (pas de B). Seuil mis à 0 quand la FG interne est active. Diagnostic ajouté : rendus FG/s, raison des attentes (sans A / sans B / trou, images par mix) dans l'overlay et le CSV, pour confirmer au prochain test.
 - Image jugée brouillonne (décor flou) avec anti-artefacts « Fort » : niveaux allégés (h 0,012/0,02/0,03, part 0,6/0,8/0,9).
 - HDR : OK (H.265 classique → SDR reçu après reconnexion).
+
+### Test du build fe32d2ef (24/11)
+- Diagnostic : 120 rendus FG/s mais « sans B 100 % · 1 img/mix ». Cause : chiaki met l'image arrivée de côté (« pending ») quand le rendu est occupé ou le verrou pris, et ne la pousse dans la file qu'à l'arrivée de la suivante (33 ms plus tard) → B toujours absente. Correctif (présentation cadencée seulement) : attente bornée du verrou (5 ms) au lieu de mettre l'image de côté, promotion de l'image retenue même rendu occupé, et poussée immédiate de l'image courante après promotion. Simulation pl_queue : A+B présentes à chaque vsync dès une limite de file ≥ 3.
+- Métadonnées de l'exe : description « Farplay - PS5 Remote Play » (sans mention du fork ; crédits dans LegalCopyright, NOTICE, README).
+- Curseur masqué après 2,5 s d'immobilité en jeu (et 3 s après le début de la partie).
+- En cours (sous-agent) : défilement molette en fenêtré et navigation manette complète dans les menus.

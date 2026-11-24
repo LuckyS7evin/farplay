@@ -295,7 +295,8 @@ private:
     struct pl_frame direct_frame = {};
     QAtomicInteger<int> direct_frame_reset = 0;
     uint64_t ts_start = 0;
-    bool farplay_top_grab = false; // FARPLAY: souris captée par la barre du haut en jeu
+    bool farplay_top_grab = false; // FARPLAY:
+    class QTimer *farplay_cursor_timer = nullptr; // FARPLAY: masquage auto du curseur en jeu souris captée par la barre du haut en jeu
     double queue_pts_origin = -1.0;
     double newest_queued_frame_pts = -1.0;
     bool playback_started = false;
