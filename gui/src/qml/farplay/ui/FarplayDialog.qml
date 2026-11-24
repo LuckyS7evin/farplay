@@ -2,6 +2,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Window
+import QtQuick.Controls.Basic
 import org.streetpea.chiaking
 
 // Farplay replacement for chiaki-ng's confirm / info / "remind me" dialogs.
@@ -95,7 +96,7 @@ FocusScope {
         id: card
         anchors.centerIn: parent
         width: Math.min(dlg.width - Theme.unit * 8, 640)
-        height: col.implicitHeight + Theme.unit * 8
+        height: Math.min(col.implicitHeight + Theme.unit * 8, dlg.height - Theme.unit * 6)
         radius: 28
         fillAlpha: 0.94
 
@@ -113,14 +114,28 @@ FocusScope {
                 font.weight: Font.DemiBold
                 color: Theme.ivory
             }
-            Text {
+            // Long messages scroll (wheel, touchpad, Up/Down on keyboard / D-pad) in small windows.
+            Flickable {
+                id: msgFlick
                 Layout.fillWidth: true
-                text: dlg.text
-                wrapMode: Text.WordWrap
-                font.family: Theme.ui
-                font.pixelSize: Theme.body
-                lineHeight: 1.15
-                color: Theme.dim
+                Layout.fillHeight: true
+                Layout.preferredHeight: msgText.implicitHeight
+                Layout.minimumHeight: Math.min(msgText.implicitHeight, 60)
+                contentWidth: width
+                contentHeight: msgText.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: FpScrollBar {}
+                Text {
+                    id: msgText
+                    width: msgFlick.width - Theme.unit
+                    text: dlg.text
+                    wrapMode: Text.WordWrap
+                    font.family: Theme.ui
+                    font.pixelSize: Theme.body
+                    lineHeight: 1.15
+                    color: Theme.dim
+                }
             }
             RowLayout {
                 Layout.fillWidth: true
@@ -159,6 +174,6 @@ FocusScope {
     readonly property Item firstBtn: yesBtn
     Keys.onLeftPressed: { if (dlg.mode !== "info") noBtn.forceActiveFocus() }
     Keys.onRightPressed: yesBtn.forceActiveFocus()
-    Keys.onUpPressed: {}
-    Keys.onDownPressed: {}
+    Keys.onUpPressed: msgFlick.contentY = Math.max(0, msgFlick.contentY - 60)
+    Keys.onDownPressed: msgFlick.contentY = Math.max(0, Math.min(msgFlick.contentHeight - msgFlick.height, msgFlick.contentY + 60))
 }

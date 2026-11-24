@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls.Basic
 import org.streetpea.chiaking
 
 FocusScope {
@@ -37,6 +38,16 @@ FocusScope {
         }
     }
 
+    // Scrolls when the window is too small for the card (wheel / touchpad / focus follows).
+    Flickable {
+        id: wizFlick
+        anchors.fill: parent
+        contentWidth: width
+        contentHeight: Math.max(height, wizCol.implicitHeight + Theme.unit * 16)
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: FpScrollBar {}
+
     FpGlass {
         anchors.fill: wizCol
         anchors.margins: -Theme.unit * 4
@@ -46,8 +57,9 @@ FocusScope {
 
     ColumnLayout {
         id: wizCol
-        anchors.centerIn: parent
-        width: Math.min(parent.width - Theme.unit * 18, 800)
+        x: (wizFlick.width - width) / 2
+        y: Math.max(Theme.unit * 8, (wizFlick.height - implicitHeight) / 2)
+        width: Math.min(wizFlick.width - Theme.unit * 18, 800)
         spacing: Theme.unit * 3
 
         RowLayout {
@@ -150,7 +162,7 @@ FocusScope {
                         implicitHeight: 96
                         activeFocusOnTab: true
                         readonly property bool chosen: FarplayProfiles.current === modelData.name
-                        border.color: chosen ? Theme.mint : (activeFocus ? Theme.ivory : Theme.border)
+                        border.color: chosen ? Theme.mint : (activeFocus ? Theme.coral : Theme.border)
                         border.width: chosen || activeFocus ? 2 : 1
                         function choose() { FarplayProfiles.apply(modelData.name) }
                         Keys.onReturnPressed: choose()
@@ -190,5 +202,6 @@ FocusScope {
                 onClicked: page.next()
             }
         }
+    }
     }
 }

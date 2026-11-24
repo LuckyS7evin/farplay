@@ -815,6 +815,16 @@ FocusScope {
                             }
                         }
                     }
+                    FpSectionCard {
+                        iconName: "gear"
+                        title: "À propos"
+                        subtitle: "Farplay " + Farplay.buildId + " · logiciel libre sous licence AGPL-3.0"
+                        expanded: false
+                        FpSettingRow {
+                            title: "Licence et crédits"
+                            description: "Farplay est distribué sous licence GNU AGPL-3.0, sans aucune garantie. Basé sur chiaki-ng et Chiaki (© leurs contributeurs), avec libplacebo, FFmpeg, Qt, AMD FidelityFX FSR 1 (MIT), polices Sora et JetBrains Mono (OFL). Code source : github.com/LuckyS7evin/farplay. Ce projet n'est ni approuvé ni certifié par Sony Interactive Entertainment."
+                        }
+                    }
                 }
             }
         }
@@ -984,23 +994,7 @@ FocusScope {
         }
     }
 
-    // Navigation au clavier/à la manette : garder l'élément sélectionné visible
-    Connections {
-        target: page.Window.window
-        function onActiveFocusItemChanged() {
-            const it = page.Window.window ? page.Window.window.activeFocusItem : null
-            if (!it || flick.contentHeight <= flick.height || !contentCol.visible) return
-            // Only react to items living inside the scrolled content.
-            let p = it
-            while (p && p !== contentCol) p = p.parent
-            if (!p) return
-            const pos = it.mapToItem(flick.contentItem, 0, 0)
-            if (pos.y < flick.contentY + 16)
-                flick.contentY = Math.max(0, pos.y - 16)
-            else if (pos.y + it.height > flick.contentY + flick.height - 16)
-                flick.contentY = Math.min(flick.contentHeight - flick.height, pos.y + it.height - flick.height + 16)
-        }
-    }
+    // (le défilement vers l'élément ayant le focus est géré par FpNav / Theme.ensureVisible)
     // Reset scroll when switching section.
     onCatChanged: flick.contentY = 0
 }

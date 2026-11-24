@@ -96,20 +96,24 @@ QtObject {
     }
     // Rect of `it` in `root` coordinates, as if every enclosing Flickable were scrolled to its top
     // (scrolled content slides under fixed headers; the layout order must not depend on the scroll).
+    // `cyc` is the same centre clamped to the Flickable viewport, used against items of another region.
     function navRect(it, root) {
         var fl = it.parent
         while (fl && fl !== root && fl.contentY === undefined) fl = fl.parent
-        var x, y
+        var x, y, region = null, yc
         if (fl && fl !== root && fl.contentItem) {
             var p = it.mapToItem(fl.contentItem, 0, 0)
             var f0 = fl.mapToItem(root, 0, 0)
             x = f0.x + p.x - fl.contentX
             y = f0.y + p.y
+            region = fl
+            yc = Math.max(f0.y, Math.min(f0.y + fl.height - it.height, y))
         } else {
             var q = it.mapToItem(root, 0, 0)
-            x = q.x; y = q.y
+            x = q.x; y = q.y; yc = y
         }
-        return { x: x, y: y, w: it.width, h: it.height, cx: x + it.width / 2, cy: y + it.height / 2 }
+        return { x: x, y: y, w: it.width, h: it.height, cx: x + it.width / 2, cy: y + it.height / 2,
+                 cyc: yc + it.height / 2, region: region }
     }
     // Next focusable item from `cur` in direction "up" | "down" | "left" | "right" (or null).
     function navNext(cur, dir, root, sameGroup) {
@@ -122,18 +126,21 @@ QtObject {
             if (c === cur) continue
             if (sameGroup && navGroup(c, root) !== grp) continue
             var r = navRect(c, root)
+            var same = r.region === cr.region
+            var cyCur = same ? cr.cy : cr.cyc, cyCand = same ? r.cy : r.cyc
+            var ovy = same ? Math.min(cr.y + cr.h, r.y + r.h) - Math.max(cr.y, r.y)
+                           : Math.min(cyCur + cr.h / 2, cyCand + r.h / 2) - Math.max(cyCur - cr.h / 2, cyCand - r.h / 2)
             var score
             if (dir === "up" || dir === "down") {
-                var d = (r.cy - cr.cy) * (dir === "down" ? 1 : -1)
-                var ov = Math.min(cr.y + cr.h, r.y + r.h) - Math.max(cr.y, r.y)
-                if (d < 4 || ov > 0.5 * Math.min(cr.h, r.h) || navGroup(c, root) !== grp) continue
+                var d = (cyCand - cyCur) * (dir === "down" ? 1 : -1)
+                if (d < 4 || ovy > 0.5 * Math.min(cr.h, r.h) || navGroup(c, root) !== grp) continue
                 var gap = Math.max(0, r.x - (cr.x + cr.w), cr.x - (r.x + r.w))
-                score = d + gap * 3 + Math.abs(r.cx - cr.cx) * 0.05
+                // last term: among equal candidates prefer the first (down) / last (up) of a list
+                score = d + gap * 3 + Math.abs(r.cx - cr.cx) * 0.05 + (dir === "down" ? r.y : -r.y) * 1e-4
             } else {
                 var dx = (r.cx - cr.cx) * (dir === "right" ? 1 : -1)
-                var ovy = Math.min(cr.y + cr.h, r.y + r.h) - Math.max(cr.y, r.y)
                 if (dx < 4 || ovy <= 0) continue
-                score = dx + Math.abs(r.cy - cr.cy) * 1.5
+                score = dx + Math.abs(cyCand - cyCur) * 1.5
             }
             if (score < bestScore) { bestScore = score; best = c }
         }
@@ -150,6 +157,18 @@ QtObject {
         n.forceActiveFocus(dir === "up" || dir === "left" ? Qt.BacktabFocusReason : Qt.TabFocusReason)
         return true
     }
+    // Page scroll (PageUp/PageDown, L1/R1): nearest scrollable Flickable of the focused item.
+    function navPage(win, dir) {
+        var cur = win ? win.activeFocusItem : null
+        if (!cur || !navRoot(cur)) return false
+        for (var f = cur.parent; f; f = f.parent) {
+            if (f.contentY !== undefined && f.contentHeight > f.height + 1) {
+                f.contentY = Math.max(0, Math.min(f.contentHeight - f.height, f.contentY + dir * f.height * 0.8))
+                return true
+            }
+        }
+        return false
+    }
     // Called by Main.qml for key presses nobody handled (see FpNav.qml).
     function handleKey(event, win) {
         if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)) return false
@@ -158,6 +177,8 @@ QtObject {
         case Qt.Key_Down: return navMove(win, "down")
         case Qt.Key_Left: return navMove(win, "left")
         case Qt.Key_Right: return navMove(win, "right")
+        case Qt.Key_PageUp: return navPage(win, -1)    // L1
+        case Qt.Key_PageDown: return navPage(win, 1)   // R1
         }
         return false
     }

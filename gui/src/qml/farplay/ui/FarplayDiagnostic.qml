@@ -81,6 +81,17 @@ FocusScope {
     }
 
     Keys.onEscapePressed: root.showMainView()
+    // No focusable row below the header: Up/Down/PageUp/PageDown scroll the report.
+    function scrollBy(dy) {
+        const f = scroll.contentItem
+        if (f && f.contentHeight > f.height) f.contentY = Math.max(0, Math.min(f.contentHeight - f.height, f.contentY + dy))
+    }
+    Keys.onDownPressed: scrollBy(90)
+    Keys.onUpPressed: scrollBy(-90)
+    Keys.onPressed: (e) => {
+        if (e.key === Qt.Key_PageDown) { scrollBy(scroll.height * 0.8); e.accepted = true }
+        else if (e.key === Qt.Key_PageUp) { scrollBy(-scroll.height * 0.8); e.accepted = true }
+    }
     Component.onCompleted: backBtn.forceActiveFocus()
 
     Rectangle { anchors.fill: parent; color: Theme.night }
@@ -131,6 +142,7 @@ FocusScope {
         width: Math.min(parent.width - Theme.unit * 10, 900)
         contentWidth: availableWidth
         clip: true
+        ScrollBar.vertical: FpScrollBar {}
 
         ColumnLayout {
             width: scroll.availableWidth

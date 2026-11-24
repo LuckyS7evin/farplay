@@ -50,6 +50,7 @@ FarplayDialogCard {
             }
             TextInput {
                 id: pinInput
+                activeFocusOnTab: true
                 anchors.fill: parent
                 opacity: 0
                 maximumLength: 4

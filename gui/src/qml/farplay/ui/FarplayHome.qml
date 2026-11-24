@@ -234,7 +234,7 @@ Item {
                         radius: 35
                         color: "transparent"
                         border.width: 3
-                        border.color: Theme.ivory
+                        border.color: Theme.coral
                         visible: tile.selected && list.activeFocus
                     }
                     MouseArea {
@@ -487,20 +487,5 @@ Item {
         anchors.bottomMargin: Theme.unit * 3
         model: [["✕", "Valider"]]
     }
-
-    Connections {
-        target: page.Window.window
-        function onActiveFocusItemChanged() {
-            const it = page.Window.window ? page.Window.window.activeFocusItem : null
-            if (!it || flick.contentHeight <= flick.height) return
-            let p = it
-            while (p && p !== content) p = p.parent
-            if (!p) return
-            const pos = it.mapToItem(flick.contentItem, 0, 0)
-            if (pos.y < flick.contentY + Theme.unit * 2)
-                flick.contentY = Math.max(0, pos.y - Theme.unit * 2)
-            else if (pos.y + it.height > flick.contentY + flick.height - Theme.unit * 2)
-                flick.contentY = Math.min(flick.contentHeight - flick.height, pos.y + it.height - flick.height + Theme.unit * 2)
-        }
-    }
+    // (le défilement vers l'élément ayant le focus est géré par FpNav / Theme.ensureVisible)
 }

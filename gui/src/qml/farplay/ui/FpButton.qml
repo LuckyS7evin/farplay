@@ -39,7 +39,7 @@ Item {
         radius: height / 2
         color: "transparent"
         border.width: 2
-        border.color: Theme.ivory
+        border.color: root.primary ? Theme.ivory : Theme.coral
         visible: root.activeFocus
     }
     Row {

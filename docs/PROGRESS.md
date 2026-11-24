@@ -148,3 +148,6 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - Métadonnées de l'exe : description « Farplay - PS5 Remote Play » (sans mention du fork ; crédits dans LegalCopyright, NOTICE, README).
 - Curseur masqué après 2,5 s d'immobilité en jeu (et 3 s après le début de la partie).
 - En cours (sous-agent) : défilement molette en fenêtré et navigation manette complète dans les menus.
+- Menus (sous-agent) : navigation spatiale générique (Theme.handleKey/navMove, crochet FpNav dans Main.qml) — les flèches/croix de la manette (traduites en touches par qmlcontroller.cpp) atteignent chaque contrôle visible ; défilement automatique vers l'élément sélectionné ; L1/R1 = page ; anneau de focus corail partout ; barres de défilement fines ; barre latérale, assistant et dialogues défilants. Cause du blocage : `nextItemInFocusChain()` appelé depuis un FocusScope renvoyait son propre enfant.
+- Molette : `QmlMainWindow::event` ne transmettait pas `QEvent::Wheel` à l'interface → ajouté.
+- Réglages > Profils > « À propos » : licence AGPL-3.0, absence de garantie, crédits, lien vers le code source.

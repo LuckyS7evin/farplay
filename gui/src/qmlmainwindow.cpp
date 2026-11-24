@@ -7909,6 +7909,11 @@ bool QmlMainWindow::event(QEvent *event)
         }
         QGuiApplication::sendEvent(quick_window, event);
         break;
+    case QEvent::Wheel: // FARPLAY: molette transmise à l'interface (défilement des menus)
+        if (session && !grab_input)
+            return true;
+        QGuiApplication::sendEvent(quick_window, event);
+        break;
     case QEvent::TouchBegin:
     case QEvent::TouchUpdate:
     case QEvent::TouchEnd:
