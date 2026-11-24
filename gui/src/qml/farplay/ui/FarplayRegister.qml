@@ -233,7 +233,7 @@ FpPage {
                     contentHeight: logArea.implicitHeight
                     boundsBehavior: Flickable.StopAtBounds
                     onContentHeightChanged: contentY = Math.max(0, contentHeight - height)
-                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+                    ScrollBar.vertical: FpScrollBar {}
                     Text {
                         id: logArea
                         width: parent.width - 12

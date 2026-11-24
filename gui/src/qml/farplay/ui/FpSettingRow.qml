@@ -19,8 +19,6 @@ FocusScope {
             slot.children[0].focus = true
     }
     onActiveFocusChanged: if (activeFocus) Theme.ensureVisible(root)
-    Keys.onUpPressed: { var i = nextItemInFocusChain(false); if (i) i.forceActiveFocus() }
-    Keys.onDownPressed: { var i = nextItemInFocusChain(true); if (i) i.forceActiveFocus() }
 
     Rectangle {
         anchors.fill: parent

@@ -135,7 +135,7 @@ Item {
         contentHeight: Math.max(height, content.implicitHeight + Theme.unit * 4)
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: ScrollBar { policy: flick.contentHeight > flick.height ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff }
+        ScrollBar.vertical: FpScrollBar {}
 
         ColumnLayout {
             id: content

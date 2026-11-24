@@ -106,11 +106,22 @@ FocusScope {
             }
         }
 
-        Column {
+        Flickable {
+            id: sideFlick
             x: Theme.unit * 2
-            y: 96
+            y: 88
             width: parent.width - Theme.unit * 4
-            spacing: 4
+            anchors.bottom: hostCard.visible ? hostCard.top : parent.bottom
+            anchors.bottomMargin: Theme.unit
+            contentWidth: width
+            contentHeight: sideCol.implicitHeight + Theme.unit
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: FpScrollBar {}
+            Column {
+                id: sideCol
+                width: parent.width
+                spacing: 4
             Repeater {
                 id: sideRepeater
                 model: page.cats
@@ -129,9 +140,11 @@ FocusScope {
                 }
             }
         }
+        }
 
         // Current console
         Rectangle {
+            id: hostCard
             readonly property var h: (Chiaki.hosts && Chiaki.hosts.length > 0) ? Chiaki.hosts[0] : null
             visible: h !== null
             x: Theme.unit * 2
@@ -182,9 +195,7 @@ FocusScope {
         anchors.bottom: pipeline.visible ? pipeline.top : footer.top
         anchors.bottomMargin: pipeline.visible ? Theme.unit * 2 : 0
 
-        Keys.onUpPressed: { var i = nextItemInFocusChain(false); if (i) i.forceActiveFocus() }
-        Keys.onDownPressed: { var i = nextItemInFocusChain(true); if (i) i.forceActiveFocus() }
-        Keys.onLeftPressed: page.focusSidebar()
+        Keys.onLeftPressed: { if (!Theme.navMove(page.Window.window, "left")) page.focusSidebar() }
 
         readonly property real colWidth: Math.min(width - Theme.unit * 10, 1040)
         readonly property real colX: Math.max(Theme.unit * 5, (width - colWidth) / 2)
@@ -236,7 +247,7 @@ FocusScope {
             contentHeight: contentCol.implicitHeight + Theme.unit * 6
             clip: true
             boundsBehavior: Flickable.StopAtBounds
-            ScrollBar.vertical: ScrollBar { policy: flick.contentHeight > flick.height ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff }
+            ScrollBar.vertical: FpScrollBar {}
 
             Item {
                 id: contentCol

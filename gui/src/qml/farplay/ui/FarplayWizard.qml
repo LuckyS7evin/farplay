@@ -18,10 +18,6 @@ FocusScope {
     onStepChanged: nextBtn.forceActiveFocus()
 
     Keys.onEscapePressed: done()
-    Keys.onUpPressed: { var i = nextItemInFocusChain(false); if (i) i.forceActiveFocus() }
-    Keys.onLeftPressed: { var i = nextItemInFocusChain(false); if (i) i.forceActiveFocus() }
-    Keys.onDownPressed: { var i = nextItemInFocusChain(true); if (i) i.forceActiveFocus() }
-    Keys.onRightPressed: { var i = nextItemInFocusChain(true); if (i) i.forceActiveFocus() }
     Component.onCompleted: nextBtn.forceActiveFocus()
 
     component Body: Text {

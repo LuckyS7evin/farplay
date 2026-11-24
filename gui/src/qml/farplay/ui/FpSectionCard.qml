@@ -38,8 +38,6 @@ FpGlass {
             Keys.onReturnPressed: root.expanded = !root.expanded
             Keys.onEnterPressed: root.expanded = !root.expanded
             Keys.onSpacePressed: root.expanded = !root.expanded
-            Keys.onUpPressed: { var i = nextItemInFocusChain(false); if (i) i.forceActiveFocus() }
-            Keys.onDownPressed: { var i = nextItemInFocusChain(true); if (i) i.forceActiveFocus() }
 
             MouseArea {
                 anchors.fill: parent

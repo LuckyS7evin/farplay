@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls.Basic
 
 ComboBox {
@@ -11,10 +12,14 @@ ComboBox {
     font.family: Theme.ui
     font.pixelSize: Theme.body - 1
 
-    Keys.onReturnPressed: popup.open()
-    Keys.onEnterPressed: popup.open()
-    Keys.onLeftPressed: (e) => { if (currentIndex > 0) { currentIndex = currentIndex - 1; activated(currentIndex) } else e.accepted = false }
-    Keys.onRightPressed: (e) => { if (currentIndex < count - 1) { currentIndex = currentIndex + 1; activated(currentIndex) } else e.accepted = false }
+    // Closed: Up/Down move to the neighbouring control (ComboBox would change its value);
+    // Left/Right change the value. Open: the popup list is driven by the ComboBox itself.
+    Keys.onReturnPressed: (e) => { if (popup.visible) e.accepted = false; else popup.open() }
+    Keys.onEnterPressed: (e) => { if (popup.visible) e.accepted = false; else popup.open() }
+    Keys.onUpPressed: (e) => { if (popup.visible) e.accepted = false; else Theme.navMove(root.Window.window, "up") }
+    Keys.onDownPressed: (e) => { if (popup.visible) e.accepted = false; else Theme.navMove(root.Window.window, "down") }
+    Keys.onLeftPressed: (e) => { if (popup.visible) e.accepted = false; else if (currentIndex > 0) { currentIndex = currentIndex - 1; activated(currentIndex) } else e.accepted = false }
+    Keys.onRightPressed: (e) => { if (popup.visible) e.accepted = false; else if (currentIndex < count - 1) { currentIndex = currentIndex + 1; activated(currentIndex) } else e.accepted = false }
 
     background: Rectangle {
         radius: height / 2

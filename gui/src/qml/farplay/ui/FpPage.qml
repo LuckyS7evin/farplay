@@ -39,8 +39,6 @@ FocusScope {
     }
 
     Keys.onEscapePressed: page.back()
-    Keys.onUpPressed: { var i = nextItemInFocusChain(false); if (i) i.forceActiveFocus() }
-    Keys.onDownPressed: { var i = nextItemInFocusChain(true); if (i) i.forceActiveFocus() }
 
     Rectangle { anchors.fill: parent; color: Theme.night }
     Rectangle {
@@ -108,7 +106,7 @@ FocusScope {
         interactive: page.scrollable
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: ScrollBar { policy: flick.contentHeight > flick.height ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff }
+        ScrollBar.vertical: FpScrollBar {}
 
         ColumnLayout {
             id: body
@@ -127,22 +125,5 @@ FocusScope {
         width: header.width
         height: 32
         FpHints { model: page.hints }
-    }
-
-    // Keep the focused item visible inside the scrolling column.
-    Connections {
-        target: page.Window.window
-        function onActiveFocusItemChanged() {
-            const it = page.Window.window ? page.Window.window.activeFocusItem : null
-            if (!it || flick.contentHeight <= flick.height) return
-            let p = it
-            while (p && p !== body) p = p.parent
-            if (!p) return
-            const pos = it.mapToItem(flick.contentItem, 0, 0)
-            if (pos.y < flick.contentY + Theme.unit * 2)
-                flick.contentY = Math.max(0, pos.y - Theme.unit * 2)
-            else if (pos.y + it.height > flick.contentY + flick.height - Theme.unit * 2)
-                flick.contentY = Math.min(flick.contentHeight - flick.height, pos.y + it.height - flick.height + Theme.unit * 2)
-        }
     }
 }
