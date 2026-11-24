@@ -41,6 +41,7 @@
     <file alias="ui/FarplayDialog.qml">../../src/qml/farplay/ui/FarplayDialog.qml</file>
     <file alias="ui/FpTextField.qml">../../src/qml/farplay/ui/FpTextField.qml</file>
     <file alias="ui/FpPage.qml">../../src/qml/farplay/ui/FpPage.qml</file>
+    <file alias="ui/FpNav.qml">../../src/qml/farplay/ui/FpNav.qml</file>
     <file alias="ui/FarplayStreamBar.qml">../../src/qml/farplay/ui/FarplayStreamBar.qml</file>
     <file alias="ui/FarplayNotice.qml">../../src/qml/farplay/ui/FarplayNotice.qml</file>
     <file alias="ui/FarplayNetBadge.qml">../../src/qml/farplay/ui/FarplayNetBadge.qml</file>

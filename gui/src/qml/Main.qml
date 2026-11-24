@@ -115,6 +115,14 @@ Item {
         stack.pop();
     }
 
+    // FARPLAY: navigation manette/clavier des écrans Farplay (flèches/D-pad non traités par le contrôle
+    // ayant le focus -> contrôle suivant dans la direction, voir Theme.handleKey) + défilement auto
+    Keys.onPressed: (event) => { if (fpNav.item && fpNav.item.handleKey(event)) event.accepted = true }
+    Loader {
+        id: fpNav
+        source: "qrc:/farplay/ui/FpNav.qml"
+    }
+
     // FARPLAY: navigation des écrans Farplay
     function showFarplayView(url, props) {
         stack.push(url, props || {});

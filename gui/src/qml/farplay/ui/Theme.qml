@@ -40,17 +40,104 @@ QtObject {
     readonly property int slideDistance: animations ? 16 : 0
     readonly property int easing: Easing.OutCubic
 
-    // Scrolls the enclosing Flickable (if any) so that `item` is fully visible.
+    // ── Scrolling ──────────────────────────────────────────────────────────
+    // Scrolls every enclosing Flickable so that `item` (or the row that holds it) is fully visible.
     function ensureVisible(item) {
+        if (!item) return
+        var target = item
+        for (var q = item.parent, n = 0; q && n < 3; q = q.parent, n++) {
+            if (q.fpScrollTarget === true) { target = q; break }
+        }
         var f = item.parent
-        while (f && f.contentY === undefined)
+        var guard = 0
+        while (f && guard++ < 32) {
+            if (f.contentY !== undefined && f.contentItem && f.contentHeight > f.height + 1) {
+                var p = target.mapToItem(f.contentItem, 0, 0)
+                var m = 16
+                var maxY = Math.max(0, f.contentHeight - f.height)
+                var y = f.contentY
+                if (target.height + 2 * m >= f.height) y = p.y - m
+                else if (p.y - m < y) y = p.y - m
+                else if (p.y + target.height + m > y + f.height) y = p.y + target.height + m - f.height
+                f.contentY = Math.max(0, Math.min(maxY, y))
+            }
             f = f.parent
-        if (!f || !f.contentItem)
-            return
-        var p = item.mapToItem(f.contentItem, 0, 0)
-        if (p.y < f.contentY)
-            f.contentY = Math.max(0, p.y - 16)
-        else if (p.y + item.height > f.contentY + f.height)
-            f.contentY = p.y + item.height - f.height + 16
+        }
+    }
+
+    // ── Keyboard / controller spatial navigation ─────────────────────────────
+    // chiaki-ng turns pad buttons into Key_Up/Down/Left/Right/Return/Escape events sent to the
+    // window (qmlcontroller.cpp). Controls consume Left/Right when they change a value; every
+    // other arrow press reaches Main.qml's root, which calls handleKey(): the next focusable
+    // control (activeFocusOnTab) of the current Farplay screen is picked geometrically.
+    function isFp(o) { return /^(Farplay|Fp)/.test(String(o)) }
+    function navRoot(item) {
+        var r = null
+        for (var p = item; p; p = p.parent) {
+            if (p.fpNavRoot === true) return p
+            if (isFp(p)) r = p
+        }
+        return r
+    }
+    function navTargets(it, out) {
+        for (var i = 0; i < it.children.length; i++) {
+            var c = it.children[i]
+            if (!c.visible || !c.enabled) continue
+            if (c.activeFocusOnTab === true && c.width > 0 && c.height > 0) out.push(c)
+            navTargets(c, out)
+        }
+        return out
+    }
+    function navRect(it, root) {
+        var p = it.mapToItem(root, 0, 0)
+        return { x: p.x, y: p.y, w: it.width, h: it.height, cx: p.x + it.width / 2, cy: p.y + it.height / 2 }
+    }
+    // Next focusable item from `cur` in direction "up" | "down" | "left" | "right" (or null).
+    function navNext(cur, dir, root) {
+        var cr = navRect(cur, root)
+        var list = navTargets(root, [])
+        var best = null, bestScore = 1e12
+        for (var i = 0; i < list.length; i++) {
+            var c = list[i]
+            if (c === cur) continue
+            var r = navRect(c, root)
+            var score
+            if (dir === "up" || dir === "down") {
+                var d = (r.cy - cr.cy) * (dir === "down" ? 1 : -1)
+                var ov = Math.min(cr.y + cr.h, r.y + r.h) - Math.max(cr.y, r.y)
+                if (d < 4 || ov > 0.5 * Math.min(cr.h, r.h)) continue
+                var gap = Math.max(0, r.x - (cr.x + cr.w), cr.x - (r.x + r.w))
+                score = d + gap * 2 + Math.abs(r.cx - cr.cx) * 0.3
+            } else {
+                var dx = (r.cx - cr.cx) * (dir === "right" ? 1 : -1)
+                var ovy = Math.min(cr.y + cr.h, r.y + r.h) - Math.max(cr.y, r.y)
+                if (dx < 4 || ovy <= 0) continue
+                score = dx + Math.abs(r.cy - cr.cy) * 1.5
+            }
+            if (score < bestScore) { bestScore = score; best = c }
+        }
+        return best
+    }
+    // Moves the focus; returns true when it moved.
+    function navMove(win, dir) {
+        var cur = win ? win.activeFocusItem : null
+        if (!cur) return false
+        var root = navRoot(cur)
+        if (!root) return false
+        var n = navNext(cur, dir, root)
+        if (!n) return false
+        n.forceActiveFocus(dir === "up" || dir === "left" ? Qt.BacktabFocusReason : Qt.TabFocusReason)
+        return true
+    }
+    // Called by Main.qml for key presses nobody handled (see FpNav.qml).
+    function handleKey(event, win) {
+        if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)) return false
+        switch (event.key) {
+        case Qt.Key_Up: return navMove(win, "up")
+        case Qt.Key_Down: return navMove(win, "down")
+        case Qt.Key_Left: return navMove(win, "left")
+        case Qt.Key_Right: return navMove(win, "right")
+        }
+        return false
     }
 }
