@@ -297,6 +297,14 @@ void Stats::setFrameGenState(FgState state)
     fg_state = state;
 }
 
+void Stats::noteFrameGenWait(int reason, int mix_frames)
+{
+    QMutexLocker lock(&mutex);
+    if (reason >= 0 && reason < 3)
+        fg_wait_reason[reason]++;
+    fg_mix_frames_sum += static_cast<uint32_t>(mix_frames > 0 ? mix_frames : 0);
+}
+
 void Stats::onFrameGenOutput(bool generated, bool new_image, double pyramid_ms, double flow_ms, double synth_ms)
 {
     QMutexLocker lock(&mutex);
@@ -393,6 +401,8 @@ void Stats::tick()
     const int64_t now = (int64_t)chiaki_time_now_monotonic_us();
     RingStats src, disp, gframe, gblend, gup, gden;
     double fg_wait_pct = 0.0;
+    double fg_calls_per_s = 0.0;
+    QString fg_wait_detail;
     Upscaler up;
     float up_factor, peak;
     int otrc, oprim, ow, oh;
@@ -414,6 +424,16 @@ void Stats::tick()
         otrc = out_trc; oprim = out_prim; ow = out_width; oh = out_height;
         fgs = fg_state; fgg = fg_generated; fgd = fg_distinct;
         fg_wait_pct = fg_vsync_total ? 100.0 * fg_vsync_wait / fg_vsync_total : 0.0;
+        fg_calls_per_s = fg_vsync_total / 0.5;
+        if (fg_vsync_wait) {
+            fg_wait_detail = QStringLiteral("sans A %1 % · sans B %2 % · trou %3 % · %4 img/mix")
+                .arg(100.0 * fg_wait_reason[0] / fg_vsync_wait, 0, 'f', 0)
+                .arg(100.0 * fg_wait_reason[1] / fg_vsync_wait, 0, 'f', 0)
+                .arg(100.0 * fg_wait_reason[2] / fg_vsync_wait, 0, 'f', 0)
+                .arg(double(fg_mix_frames_sum) / fg_vsync_wait, 0, 'f', 1);
+        }
+        fg_wait_reason[0] = fg_wait_reason[1] = fg_wait_reason[2] = 0;
+        fg_mix_frames_sum = 0;
         // Majorité de vsyncs sans image suivante sur le tick : état « attente »
         if (fg_vsync_total && fg_vsync_wait * 2 > fg_vsync_total)
             fgs = FgState::Waiting;
@@ -575,6 +595,8 @@ void Stats::tick()
     // la cadence distincte vaut au moins celle du flux (jamais la fréquence écran).
     s[QStringLiteral("fpsDistinct")] = std::max(fps_distinct, fps_in);
     s[QStringLiteral("fgWaitPct")] = fg_wait_pct;
+    s[QStringLiteral("fgWaitDetail")] = fg_wait_detail;
+    s[QStringLiteral("fgCallsPerSec")] = fg_calls_per_s; // rendus de la frame gen par seconde (devrait suivre l'écran)
     s[QStringLiteral("fgFlowMs")] = fflow;
     s[QStringLiteral("fgSynthMs")] = fsynth;
     s[QStringLiteral("fgPyrMs")] = fpyr;
@@ -616,7 +638,7 @@ void Stats::writeCsv(const QVariantMap &s)
                "upscaler,upscale_factor,gpu_upscale_avg_ms,gpu_upscale_p99_ms,out_resolution,output,src_peak_nits,"
                "requested_bitrate_mbps,target_bitrate_mbps,"
                "fg_state,fps_gen,fg_pyr_ms,fg_flow_ms,fg_synth_ms,fg_cost_ms,fg_delay_ms,"
-               "fps_out_1pct_low,pacing_margin_ms,audio_delay_ms,fps_distinct,gpu_denoise_avg_ms,fg_wait_pct\n";
+               "fps_out_1pct_low,pacing_margin_ms,audio_delay_ms,fps_distinct,gpu_denoise_avg_ms,fg_wait_pct,fg_calls_per_s,fg_wait_detail\n";
         emit csvLoggingChanged();
     }
     const double t = ((int64_t)chiaki_time_now_monotonic_us() - session_start_us) / 1e6;
@@ -635,7 +657,7 @@ void Stats::writeCsv(const QVariantMap &s)
         << f("requestedBitrate") << ',' << f("targetBitrate") << ','
         << str("fgState") << ',' << f("fpsGen") << ',' << f("fgPyrMs") << ',' << f("fgFlowMs") << ','
         << f("fgSynthMs") << ',' << f("fgCostMs") << ',' << f("fgDelayMs") << ','
-        << f("fpsOut1Low") << ',' << f("pacingMarginMs") << ',' << f("audioDelayMs") << ',' << f("fpsDistinct") << ',' << f("gpuDenoiseAvg") << ',' << f("fgWaitPct") << '\n';
+        << f("fpsOut1Low") << ',' << f("pacingMarginMs") << ',' << f("audioDelayMs") << ',' << f("fpsDistinct") << ',' << f("gpuDenoiseAvg") << ',' << f("fgWaitPct") << ',' << f("fgCallsPerSec") << ',' << str("fgWaitDetail") << '\n';
     out.flush();
 }
 

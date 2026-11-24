@@ -6817,6 +6817,12 @@ void QmlMainWindow::render()
     schedule_frame_mixer_active.storeRelaxed(mixer_active ? 1 : 0);
     qparams.interpolation_threshold = mixer_active ? 0.01 : 0.0;
     qparams.radius = pl_frame_mix_radius(&params);
+    // FARPLAY: la frame gen a toujours besoin de l'image suivante dans le mix. libplacebo
+    // estime la vsync d'après l'écart entre deux appels ; si le rendu n'est pas appelé à
+    // chaque vsync, il la croit égale à la durée d'une image et passe en « maintien »
+    // (une seule image), ce qui bloquait la synthèse hors menu.
+    if (mixer_active && farplay::FrameGen::instance().internalActive())
+        qparams.interpolation_threshold = 0.0f;
     qparams.vsync_duration = vsync_duration;
     qparams.pts = playback_started
         ? (double)(ts_pre_update - ts_start) / 1000000.0 + vsync_duration - kPtsStaleMarginS

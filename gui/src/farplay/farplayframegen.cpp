@@ -224,6 +224,7 @@ bool FrameGen::render(pl_renderer renderer, const struct pl_frame_mix *mix,
             ib = i;
     }
     if (ia < 0 || (interp && (ib < 0 || ib != ia + 1))) {
+        stats.noteFrameGenWait(ia < 0 ? 0 : (ib < 0 ? 1 : 2), mix->num_frames);
         stats.setFrameGenState(Stats::FgState::Waiting);
         return false;
     }

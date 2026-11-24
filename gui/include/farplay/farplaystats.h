@@ -90,6 +90,8 @@ public:
     void setDenoiseActive(bool active) { denoise_active.store(active, std::memory_order_relaxed); }
     // Phase 3 : génération d'images (thread de rendu)
     void setFrameGenState(FgState state);
+    // Raison d'une attente : 0 = pas d'image courante, 1 = pas d'image suivante dans le mix, 2 = trou entre les deux
+    void noteFrameGenWait(int reason, int mix_frames);
     // new_image = image différente de la précédente (à 120 Hz en x2, chaque image est présentée deux fois)
     void onFrameGenOutput(bool generated, bool new_image, double pyramid_ms, double flow_ms, double synth_ms);
     void setFrameGenDelay(double ms);
@@ -145,6 +147,7 @@ private:
     FgState fg_state = FgState::Off;
     uint64_t fg_generated = 0;
     uint64_t fg_distinct = 0;
+    uint32_t fg_wait_reason[3] = {}; uint32_t fg_mix_frames_sum = 0;
     uint32_t fg_vsync_wait = 0, fg_vsync_total = 0; // vsyncs sans image suivante / total (par tick)
     uint64_t prev_fg_distinct = 0;
     double fg_pyr_ms = 0.0, fg_flow_ms = 0.0, fg_synth_ms = 0.0, fg_delay_ms = 0.0;

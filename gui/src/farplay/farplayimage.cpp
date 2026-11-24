@@ -200,8 +200,10 @@ int Image::buildHooks(const struct pl_hook *upscale_hook, const struct pl_hook *
 {
     // Force (écart de patch toléré en valeur de code) et part de l'image filtrée.
     // Réglés sur un test synthétique bruit + blocs 8x8 : +2 / +4 / +5 dB.
-    static constexpr float kH[4] = {0.0f, 0.015f, 0.025f, 0.04f};
-    static constexpr float kMix[4] = {0.0f, 0.8f, 0.9f, 1.0f};
+    // Allégés après le test sur GTA : au niveau fort, le feuillage lointain
+    // (texture fine de faible contraste) était lissé comme du bruit.
+    static constexpr float kH[4] = {0.0f, 0.012f, 0.02f, 0.03f};
+    static constexpr float kMix[4] = {0.0f, 0.6f, 0.8f, 0.9f};
     int n = 0;
     if (chromaFromLuma() && cfl_hook_)
         out[n++] = cfl_hook_;

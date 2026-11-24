@@ -129,10 +129,13 @@ Rectangle {
             Key { text: "Génération d'images" }
             Val {
                 text: overlay.s.fgActive
-                    ? "%1 · +%2 fps · latence +%3 ms".arg(overlay.s.fgState).arg(overlay.n0(overlay.s.fpsGen)).arg(overlay.n0(overlay.s.fgDelayMs))
-                    : (overlay.s.fgState || "—")
+                    ? "%1 · +%2 fps · latence +%3 ms · %4 rendus/s".arg(overlay.s.fgState).arg(overlay.n0(overlay.s.fpsGen)).arg(overlay.n0(overlay.s.fgDelayMs)).arg(overlay.n0(overlay.s.fgCallsPerSec))
+                    : (overlay.s.fgState || "—") + (overlay.s.fgCallsPerSec > 0 ? " · %1 rendus/s".arg(overlay.n0(overlay.s.fgCallsPerSec)) : "")
                 color: overlay.s.fgActive ? overlay.cMint : overlay.cIvory
             }
+
+            Key { text: "Attente FG"; visible: !!overlay.s.fgWaitDetail && overlay.s.fgWaitPct > 0 }
+            Val { text: overlay.s.fgWaitDetail || ""; color: overlay.cDim; visible: !!overlay.s.fgWaitDetail && overlay.s.fgWaitPct > 0 }
 
             Key { text: "GPU frame gen" }
             Val {
