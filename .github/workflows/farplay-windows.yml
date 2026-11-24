@@ -41,6 +41,10 @@ jobs:
       CMAKE_POLICY_VERSION_MINIMUM: "3.5"
       VCPKG_KEEP_ENV_VARS: CMAKE_POLICY_VERSION_MINIMUM
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}\vcpkg-bincache
+      # La STL de Visual Studio 14.52 (image du runner) exige Clang 22 ; le runner fournit
+      # clang-cl 20. Interrupteur officiel de Microsoft pour accepter l'écart (lu par
+      # clang-cl comme par cl via la variable CL ; vcpkg ne la reçoit pas).
+      CL: /D_ALLOW_COMPILER_AND_STL_VERSION_MISMATCH
 
     defaults:
       run:
