@@ -32,6 +32,7 @@ Raccourcis en jeu : **F3** overlay de stats, **F4** coupe/rétablit la générat
 
 - [Cahier des charges](docs/cahier-des-charges.md)
 - [Journal d'avancement](docs/PROGRESS.md)
+- [Feuille de route](docs/feuille-de-route.md)
 
 ## Crédits et licence
 
