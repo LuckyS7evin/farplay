@@ -156,3 +156,8 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - Menus manette, molette, curseur, message Windows : OK.
 - FG toujours intermittente (« sans B 100 % », 1 img/mix ; parfois 60 fps distincts). Simulation pl_queue avec libplacebo 7.387 (version Windows) : A+B toujours présentes → le problème est dans le chemin chiaki d'alimentation de la file.
 - Ajouté : diagnostic détaillé (profondeur de file, avance de la dernière image poussée sur l'instant visé, compteurs d'arrivées directes/promues/appliquées au rendu, images retenues par motif, resets) dans l'overlay (« File FG ») et le CSV ; garde-fou : l'instant visé ne dépasse jamais la dernière image poussée (part « bridées » mesurée).
+
+### Test du build b89d3670 (25/11)
+- État fluide : file 2 img, avance 15 ms, bridées 0 %, 60 fps distincts. État dégradé : avance 1 ms, bridées 100 %, 30 fps — images poussées directement (pas de rétention). Cause : l'horloge d'affichage vise trop tard quand le jeu passe sous 30 fps (29,9) alors que les pts avancent de 1/30 s : le décalage arrivée−pts dérive (~0,3 %, 20 ms sur 8 s) et le 5e centile sur 8 s est en retard sur la dérive.
+- Correctif : base = droite ajustée (moindres carrés) sur les 2 dernières secondes de décalages arrivée−pts + 5e centile des écarts, extrapolée à l'instant courant ; marge = dispersion des écarts ; pts visé maintenu croissant.
+- Comparaison PushFPS (même scène, SDR) : 60 fps, 1 % low 43, latence PC 48 ms (p95 57), GPU ~14 ms/image (NR 5,2 ms, flux 1,5, FG 2,3). Farplay : GPU ~3,5 ms/image (FG 2,0), latence ~50 ms.

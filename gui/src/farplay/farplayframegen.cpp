@@ -123,11 +123,12 @@ void FrameGen::noteSourceArrival(int64_t now_us, double pts_s, bool lost)
     }
     last_offset_ = offset;
     offsets_[arrival_head_] = offset;
+    times_[arrival_head_] = now_us / 1e6;
     arrival_head_ = (arrival_head_ + 1) % kArrivals;
     if (num_arrivals_ < kArrivals)
         num_arrivals_++;
-    // Estimation fréquente au début, puis toutes les 15 images.
-    if (++since_estimate_ >= (num_arrivals_ < 60 ? 5 : 15)) {
+    // Estimation toutes les 5 images (ajustement sur 60 points : négligeable).
+    if (++since_estimate_ >= 5) {
         since_estimate_ = 0;
         estimateJitter();
     }
@@ -135,24 +136,43 @@ void FrameGen::noteSourceArrival(int64_t now_us, double pts_s, bool lost)
 
 void FrameGen::estimateJitter()
 {
-    // Base = arrivée « sans retard » de la fenêtre (≈ 8 s), qui suit la dérive
-    // d'horloge PS5/PC puisque la fenêtre glisse. On prend le 5e centile et non
-    // le minimum : une seule image anormalement en avance (saut de pts) faisait
-    // viser des images pas encore arrivées. Marge = 95e − 5e centile + 2 ms.
-    const int n = num_arrivals_;
+    // Décalage arrivée − pts des ~2 dernières secondes, ajusté par une droite :
+    // la pente suit la dérive entre l'horloge du flux et le temps réel (horloges
+    // PS5/PC, et surtout jeu sous 30 fps alors que les pts avancent de 1/30 s :
+    // +0,3 % à 29,9 fps, soit 20 ms sur 8 s, ce qui faisait viser trop tard).
+    // Base = droite + 5e centile des écarts ; marge = 95e − 5e centile + 2 ms.
+    const int n = std::min(num_arrivals_, kFit);
     if (n < 10)
         return;
-    double res[kArrivals];
+    double t[kFit], o[kFit];
+    for (int k = 0; k < n; k++) {
+        const int idx = (arrival_head_ - n + k + kArrivals) % kArrivals;
+        t[k] = times_[idx];
+        o[k] = offsets_[idx];
+    }
+    const double t_ref = t[n - 1];
+    double st = 0, so = 0, stt = 0, sto = 0;
+    for (int k = 0; k < n; k++) {
+        const double x = t[k] - t_ref;
+        st += x; so += o[k]; stt += x * x; sto += x * o[k];
+    }
+    const double den = n * stt - st * st;
+    double slope = den > 1e-12 ? (n * sto - st * so) / den : 0.0;
+    slope = std::clamp(slope, -0.01, 0.01);
+    const double icpt = (so - slope * st) / n;
+    double res[kFit];
     for (int k = 0; k < n; k++)
-        res[k] = offsets_[k];
+        res[k] = o[k] - (icpt + slope * (t[k] - t_ref));
     const int lo = int(n * 0.05);
     const int hi = std::min(n - 1, int(n * 0.95));
     std::nth_element(res, res + lo, res + n);
-    const double base = res[lo];
+    const double r_lo = res[lo];
     std::nth_element(res, res + hi, res + n);
-    const double late_ms = (res[hi] - base) * 1000.0;
+    const double late_ms = (res[hi] - r_lo) * 1000.0;
     margin_ms_.store(std::clamp(late_ms + 2.0, 3.0, 60.0), std::memory_order_relaxed);
-    base_offset_.store(base, std::memory_order_relaxed);
+    base_slope_.store(slope, std::memory_order_relaxed);
+    base_t_.store(t_ref, std::memory_order_relaxed);
+    base_offset_.store(icpt + r_lo, std::memory_order_relaxed);
     base_valid_.store(true, std::memory_order_relaxed);
 }
 
@@ -160,8 +180,17 @@ bool FrameGen::displayPts(int64_t now_us, double queue_origin_s, double vsync_s,
 {
     if (!timedPresentation() || !base_valid_.load(std::memory_order_relaxed))
         return false;
-    // Une image de pts P arrive (au mieux) à P + base : on l'affiche à P + base + retard.
-    *out_pts = now_us / 1e6 - base_offset_.load(std::memory_order_relaxed) - queue_origin_s + vsync_s - delay_s;
+    // Une image de pts P arrive (au mieux) à P + base(t) : on l'affiche à P + base(t) + retard.
+    const double now = now_us / 1e6;
+    const double dt = std::clamp(now - base_t_.load(std::memory_order_relaxed), 0.0, 0.5);
+    const double base = base_offset_.load(std::memory_order_relaxed) + base_slope_.load(std::memory_order_relaxed) * dt;
+    double pts = now - base - queue_origin_s + vsync_s - delay_s;
+    // pl_queue exige des pts croissants : une nouvelle estimation ne fait pas reculer la cible.
+    if (queue_origin_s == last_origin_ && pts < last_out_pts_)
+        pts = last_out_pts_;
+    last_out_pts_ = pts;
+    last_origin_ = queue_origin_s;
+    *out_pts = pts;
     return true;
 }
 

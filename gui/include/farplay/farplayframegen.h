@@ -107,11 +107,16 @@ private:
     // « sans retard », l'écart au minimum = retard de l'image.
     static constexpr int kArrivals = 240; // ≈ 8 s à 30 fps
     double offsets_[kArrivals] = {};
+    double times_[kArrivals] = {};   // instants d'arrivée (s)
+    static constexpr int kFit = 60;  // ≈ 2 s : fenêtre de l'ajustement de la dérive
     int num_arrivals_ = 0;
     int arrival_head_ = 0;
     int since_estimate_ = 0;
     double last_offset_ = 0.0;
-    std::atomic<double> base_offset_{0.0};
+    std::atomic<double> base_offset_{0.0};  // base à l'instant base_t_
+    std::atomic<double> base_slope_{0.0};   // dérive de la base (s par s)
+    std::atomic<double> base_t_{0.0};
+    mutable double last_out_pts_ = -1.0, last_origin_ = -1.0; // pts visé croissant (thread rendu)
     std::atomic<bool> base_valid_{false};
     void estimateJitter();
     bool amd_ = false;
