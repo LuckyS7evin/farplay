@@ -19,6 +19,9 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #endif
 
@@ -326,8 +329,8 @@ pl_tex FsrFrameGen::generate(pl_tex cur, bool reset, pl_tex mv, float mv_sx, flo
     const int w = cur->params.w, h = cur->params.h;
     // Résolution de « rendu » (profondeur, vecteurs) : celle des vecteurs fournis,
     // sinon la moitié de l'affichage.
-    const int rw = mv ? mv->params.w : std::max(16, w / 2);
-    const int rh = mv ? mv->params.h : std::max(16, h / 2);
+    const int rw = mv ? mv->params.w : (std::max)(16, w / 2);
+    const int rh = mv ? mv->params.h : (std::max)(16, h / 2);
     if (!ensureContext(w, h, cur->params.format, hdr_pq) || !ensureAux(w, h, rw, rh))
         return nullptr;
     if (!mv) {
