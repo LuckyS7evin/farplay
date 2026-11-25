@@ -151,3 +151,8 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - Menus (sous-agent) : navigation spatiale générique (Theme.handleKey/navMove, crochet FpNav dans Main.qml) — les flèches/croix de la manette (traduites en touches par qmlcontroller.cpp) atteignent chaque contrôle visible ; défilement automatique vers l'élément sélectionné ; L1/R1 = page ; anneau de focus corail partout ; barres de défilement fines ; barre latérale, assistant et dialogues défilants. Cause du blocage : `nextItemInFocusChain()` appelé depuis un FocusScope renvoyait son propre enfant.
 - Molette : `QmlMainWindow::event` ne transmettait pas `QEvent::Wheel` à l'interface → ajouté.
 - Réglages > Profils > « À propos » : licence AGPL-3.0, absence de garantie, crédits, lien vers le code source.
+
+### Test du build 9c2b0741 (25/11)
+- Menus manette, molette, curseur, message Windows : OK.
+- FG toujours intermittente (« sans B 100 % », 1 img/mix ; parfois 60 fps distincts). Simulation pl_queue avec libplacebo 7.387 (version Windows) : A+B toujours présentes → le problème est dans le chemin chiaki d'alimentation de la file.
+- Ajouté : diagnostic détaillé (profondeur de file, avance de la dernière image poussée sur l'instant visé, compteurs d'arrivées directes/promues/appliquées au rendu, images retenues par motif, resets) dans l'overlay (« File FG ») et le CSV ; garde-fou : l'instant visé ne dépasse jamais la dernière image poussée (part « bridées » mesurée).

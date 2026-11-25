@@ -305,6 +305,26 @@ void Stats::noteFrameGenWait(int reason, int mix_frames)
     fg_mix_frames_sum += static_cast<uint32_t>(mix_frames > 0 ? mix_frames : 0);
 }
 
+void Stats::notePresent(int kind)
+{
+    QMutexLocker lock(&mutex);
+    if (kind >= 0 && kind < 10)
+        present_kind[kind]++;
+}
+
+void Stats::noteQueueDiag(int depth, double lead_ms, bool kept, bool clamped)
+{
+    QMutexLocker lock(&mutex);
+    qdiag_n++;
+    qdiag_depth += depth;
+    qdiag_lead += lead_ms;
+    qdiag_lead_min = std::min(qdiag_lead_min, lead_ms);
+    if (kept)
+        qdiag_kept++;
+    if (clamped)
+        qdiag_clamped++;
+}
+
 void Stats::onFrameGenOutput(bool generated, bool new_image, double pyramid_ms, double flow_ms, double synth_ms)
 {
     QMutexLocker lock(&mutex);
@@ -403,6 +423,7 @@ void Stats::tick()
     double fg_wait_pct = 0.0;
     double fg_calls_per_s = 0.0;
     QString fg_wait_detail;
+    QString fg_queue_detail;
     Upscaler up;
     float up_factor, peak;
     int otrc, oprim, ow, oh;
@@ -433,6 +454,19 @@ void Stats::tick()
                 .arg(double(fg_mix_frames_sum) / fg_vsync_wait, 0, 'f', 1);
         }
         fg_wait_reason[0] = fg_wait_reason[1] = fg_wait_reason[2] = 0;
+        {
+            const uint32_t *k = present_kind;
+            fg_queue_detail = QStringLiteral("file %1 img · avance moy %2 / min %3 ms · bridées %15 % · ré-enfilées %4 · arrivées : directes %5, promues %6, ajoutées %7, appliquées au rendu %8 · retenues : verrou %9, après promo %10, file %11, reset %12, recov %13 · resets %14")
+                .arg(qdiag_n ? qdiag_depth / qdiag_n : 0.0, 0, 'f', 1)
+                .arg(qdiag_n ? qdiag_lead / qdiag_n : 0.0, 0, 'f', 0)
+                .arg(qdiag_n ? qdiag_lead_min : 0.0, 0, 'f', 0)
+                .arg(qdiag_kept)
+                .arg(k[0]).arg(k[1]).arg(k[2]).arg(k[9])
+                .arg(k[3]).arg(k[4]).arg(k[7]).arg(k[6]).arg(k[5]).arg(k[8])
+                .arg(qdiag_n ? 100.0 * qdiag_clamped / qdiag_n : 0.0, 0, 'f', 0);
+            for (uint32_t &v : present_kind) v = 0;
+            qdiag_n = qdiag_kept = qdiag_clamped = 0; qdiag_depth = qdiag_lead = 0; qdiag_lead_min = 1e9;
+        }
         fg_mix_frames_sum = 0;
         // Majorité de vsyncs sans image suivante sur le tick : état « attente »
         if (fg_vsync_total && fg_vsync_wait * 2 > fg_vsync_total)
@@ -596,6 +630,7 @@ void Stats::tick()
     s[QStringLiteral("fpsDistinct")] = std::max(fps_distinct, fps_in);
     s[QStringLiteral("fgWaitPct")] = fg_wait_pct;
     s[QStringLiteral("fgWaitDetail")] = fg_wait_detail;
+    s[QStringLiteral("fgQueueDetail")] = fg_queue_detail;
     s[QStringLiteral("fgCallsPerSec")] = fg_calls_per_s; // rendus de la frame gen par seconde (devrait suivre l'écran)
     s[QStringLiteral("fgFlowMs")] = fflow;
     s[QStringLiteral("fgSynthMs")] = fsynth;
@@ -638,7 +673,7 @@ void Stats::writeCsv(const QVariantMap &s)
                "upscaler,upscale_factor,gpu_upscale_avg_ms,gpu_upscale_p99_ms,out_resolution,output,src_peak_nits,"
                "requested_bitrate_mbps,target_bitrate_mbps,"
                "fg_state,fps_gen,fg_pyr_ms,fg_flow_ms,fg_synth_ms,fg_cost_ms,fg_delay_ms,"
-               "fps_out_1pct_low,pacing_margin_ms,audio_delay_ms,fps_distinct,gpu_denoise_avg_ms,fg_wait_pct,fg_calls_per_s,fg_wait_detail\n";
+               "fps_out_1pct_low,pacing_margin_ms,audio_delay_ms,fps_distinct,gpu_denoise_avg_ms,fg_wait_pct,fg_calls_per_s,fg_wait_detail,fg_queue_detail\n";
         emit csvLoggingChanged();
     }
     const double t = ((int64_t)chiaki_time_now_monotonic_us() - session_start_us) / 1e6;
@@ -657,7 +692,7 @@ void Stats::writeCsv(const QVariantMap &s)
         << f("requestedBitrate") << ',' << f("targetBitrate") << ','
         << str("fgState") << ',' << f("fpsGen") << ',' << f("fgPyrMs") << ',' << f("fgFlowMs") << ','
         << f("fgSynthMs") << ',' << f("fgCostMs") << ',' << f("fgDelayMs") << ','
-        << f("fpsOut1Low") << ',' << f("pacingMarginMs") << ',' << f("audioDelayMs") << ',' << f("fpsDistinct") << ',' << f("gpuDenoiseAvg") << ',' << f("fgWaitPct") << ',' << f("fgCallsPerSec") << ',' << str("fgWaitDetail") << '\n';
+        << f("fpsOut1Low") << ',' << f("pacingMarginMs") << ',' << f("audioDelayMs") << ',' << f("fpsDistinct") << ',' << f("gpuDenoiseAvg") << ',' << f("fgWaitPct") << ',' << f("fgCallsPerSec") << ",\"" << str("fgWaitDetail") << "\",\"" << str("fgQueueDetail") << "\"\n";
     out.flush();
 }
 

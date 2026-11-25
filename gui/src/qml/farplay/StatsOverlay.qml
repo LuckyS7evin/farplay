@@ -137,6 +137,9 @@ Rectangle {
             Key { text: "Attente FG"; visible: !!overlay.s.fgWaitDetail && overlay.s.fgWaitPct > 0 }
             Val { text: overlay.s.fgWaitDetail || ""; color: overlay.cDim; visible: !!overlay.s.fgWaitDetail && overlay.s.fgWaitPct > 0 }
 
+            Key { text: "File FG"; visible: overlay.s.fgActive !== undefined && !!overlay.s.fgQueueDetail }
+            Val { text: overlay.s.fgQueueDetail || ""; color: overlay.cDim; wrapMode: Text.WordWrap; Layout.maximumWidth: 520; visible: !!overlay.s.fgQueueDetail }
+
             Key { text: "GPU frame gen" }
             Val {
                 text: overlay.s.fgActive

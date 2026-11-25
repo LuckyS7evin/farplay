@@ -92,6 +92,14 @@ public:
     void setFrameGenState(FgState state);
     // Raison d'une attente : 0 = pas d'image courante, 1 = pas d'image suivante dans le mix, 2 = trou entre les deux
     void noteFrameGenWait(int reason, int mix_frames);
+    // Diagnostic du chemin d'arrivée des images (thread GUI) : 0 poussée directe,
+    // 1 promue, 2 ajout Farplay après promotion, 3 retenue (verrou), 4 retenue après
+    // promotion, 5 « recovered », 6 reset différé, 7 retenue (file pleine / attente),
+    // 8 reset de la file, 9 appliquée au rendu.
+    void notePresent(int kind);
+    // Par rendu (FG active) : profondeur de la file et avance (ms) de la dernière
+    // image poussée sur l'instant visé ; kept = image ré-enfilée par chiaki.
+    void noteQueueDiag(int depth, double lead_ms, bool kept, bool clamped);
     // new_image = image différente de la précédente (à 120 Hz en x2, chaque image est présentée deux fois)
     void onFrameGenOutput(bool generated, bool new_image, double pyramid_ms, double flow_ms, double synth_ms);
     void setFrameGenDelay(double ms);
@@ -148,6 +156,7 @@ private:
     uint64_t fg_generated = 0;
     uint64_t fg_distinct = 0;
     uint32_t fg_wait_reason[3] = {}; uint32_t fg_mix_frames_sum = 0;
+    uint32_t present_kind[10] = {}; uint32_t qdiag_n = 0, qdiag_kept = 0, qdiag_clamped = 0; double qdiag_depth = 0, qdiag_lead = 0, qdiag_lead_min = 1e9;
     uint32_t fg_vsync_wait = 0, fg_vsync_total = 0; // vsyncs sans image suivante / total (par tick)
     uint64_t prev_fg_distinct = 0;
     double fg_pyr_ms = 0.0, fg_flow_ms = 0.0, fg_synth_ms = 0.0, fg_delay_ms = 0.0;

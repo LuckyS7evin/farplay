@@ -3053,6 +3053,7 @@ void QmlMainWindow::presentFrame(ChiakiFfmpegFrame frame, int32_t frames_lost, q
 
     if (frame.recovered)
     {
+        farplay::Stats::instance().notePresent(5); // FARPLAY: diagnostic
         const bool stored_pending = storePendingFrame(frame, true, synthetic_warmup_frame);
         if (stored_pending)
             snapshotPendingFrame();
@@ -3098,6 +3099,7 @@ void QmlMainWindow::presentFrame(ChiakiFfmpegFrame frame, int32_t frames_lost, q
     if (!synthetic_warmup_frame) {
         // attente bornée (pas de blocage possible) plutôt qu'un échec immédiat
         if (!placebo_state_mutex.tryLock(farplay_timed ? 5 : 0)) {
+            farplay::Stats::instance().notePresent(3); // FARPLAY: diagnostic
             if (storePendingFrame(frame, true, synthetic_warmup_frame)) {
                 snapshotPendingFrame();
                 armStartupVisibility();
@@ -3133,7 +3135,7 @@ void QmlMainWindow::presentFrame(ChiakiFfmpegFrame frame, int32_t frames_lost, q
             }
         } else if (queue_pts_origin < 0.0 || frame.pts + 1e-6 < queue_pts_origin) {
             logPtsRollback("presentFrame/rollback", frame.pts, queue_pts_origin, false, frame.duration * 1000.0);
-            pl_queue_reset(placebo_queue);
+            pl_queue_reset(placebo_queue); farplay::Stats::instance().notePresent(8); // FARPLAY: diagnostic
             placebo_queue_resets++;
             queue_rollback_pending = false;
             resetQueueDepthTracking();
@@ -3153,6 +3155,7 @@ void QmlMainWindow::presentFrame(ChiakiFfmpegFrame frame, int32_t frames_lost, q
         deinterlace_enabled = this->renderparams_opts->params.deinterlace_params;
     }
     if (defer_queue_reset) {
+        farplay::Stats::instance().notePresent(6); // FARPLAY: diagnostic
         if (storePendingFrame(frame, true, synthetic_warmup_frame)) {
             snapshotPendingFrame();
             armStartupVisibility();
@@ -3252,6 +3255,7 @@ void QmlMainWindow::presentFrame(ChiakiFfmpegFrame frame, int32_t frames_lost, q
         {
             const qint64 push_begin_us = static_cast<qint64>(chiaki_time_now_monotonic_us());
             pl_queue_push(placebo_queue, &src_frame);
+            farplay::Stats::instance().notePresent(0); // FARPLAY: diagnostic
             const qint64 push_end_us = static_cast<qint64>(chiaki_time_now_monotonic_us());
             logLatencyStats("pl_queue_push", push_end_us - push_begin_us);
             CHIAKI_NOISY_DEBUG().nospace()
@@ -3325,6 +3329,7 @@ void QmlMainWindow::presentFrame(ChiakiFfmpegFrame frame, int32_t frames_lost, q
                 {
                     const qint64 push_begin_us = static_cast<qint64>(chiaki_time_now_monotonic_us());
                     pl_queue_push(placebo_queue, &promoted_src_frame);
+                    farplay::Stats::instance().notePresent(1); // FARPLAY: diagnostic
                     const qint64 push_end_us = static_cast<qint64>(chiaki_time_now_monotonic_us());
                     queue_depth_cached.storeRelease(pl_queue_num_frames(placebo_queue));
                     logLatencyStats("pl_queue_push", push_end_us - push_begin_us);
@@ -3355,12 +3360,14 @@ void QmlMainWindow::presentFrame(ChiakiFfmpegFrame frame, int32_t frames_lost, q
             QMutexLocker locker(&placebo_state_mutex);
             if (pl_queue_num_frames(placebo_queue) < submission_depth_limit) {
                 pl_queue_push(placebo_queue, &src_frame);
+                farplay::Stats::instance().notePresent(2); // FARPLAY: diagnostic
                 queue_depth_cached.storeRelease(pl_queue_num_frames(placebo_queue));
                 newest_queued_frame_pts = qMax(newest_queued_frame_pts, frame.pts);
                 frame.frame = nullptr; // appartient désormais à la file
                 armStartupVisibility();
             }
         }
+        farplay::Stats::instance().notePresent(4); // FARPLAY: diagnostic
         if (frame.frame && storePendingFrame(frame, true, synthetic_warmup_frame)) {
             snapshotPendingFrame();
             armStartupVisibility();
@@ -3390,6 +3397,7 @@ void QmlMainWindow::presentFrame(ChiakiFfmpegFrame frame, int32_t frames_lost, q
         const quint64 reset_seed_generation = reset_seed_capture_generation.loadAcquire();
         if (reset_seed_capture_active.loadAcquire() != 0 && reset_seed_generation != 0)
             storeResetSeedFrame(frame.frame, frame.pts, frame.duration, reset_seed_generation);
+        farplay::Stats::instance().notePresent(7); // FARPLAY: diagnostic
         if (storePendingFrame(frame, true, synthetic_warmup_frame)) {
             snapshotPendingFrame();
             armStartupVisibility();
@@ -3508,7 +3516,7 @@ void QmlMainWindow::resetPlaceboQueue()
         << "preserve_timeline=" << preserve_timeline
         << "queue_pts_origin=" << queue_pts_origin
         << "playback_started=" << playback_started;
-    pl_queue_reset(placebo_queue);
+    pl_queue_reset(placebo_queue); farplay::Stats::instance().notePresent(8); // FARPLAY: diagnostic
     placebo_queue_resets++;
     // the next stored frame is compared with the new origin as usual
     queue_rollback_pending = false;
@@ -4302,7 +4310,7 @@ bool QmlMainWindow::queueStoredFrame(AVFrame *frame, double pts, float duration,
         double queue_origin = synthetic_warmup ? pts : queue_pts_origin;
         if (!synthetic_warmup && (rollback_pending || queue_pts_origin < 0.0 || pts + 1e-6 < queue_pts_origin)) {
             logPtsRollback("applyPendingFrame/rollback", pts, queue_pts_origin, preserve_timeline, duration * 1000.0);
-            pl_queue_reset(placebo_queue);
+            pl_queue_reset(placebo_queue); farplay::Stats::instance().notePresent(8); // FARPLAY: diagnostic
             placebo_queue_resets++;
             queue_rollback_pending = false;
             resetQueueDepthTracking();
@@ -4345,6 +4353,7 @@ bool QmlMainWindow::queueStoredFrame(AVFrame *frame, double pts, float duration,
         } else {
             const qint64 push_begin_us = static_cast<qint64>(chiaki_time_now_monotonic_us());
             pl_queue_push(placebo_queue, &src_frame);
+            farplay::Stats::instance().notePresent(9); // FARPLAY: diagnostic
             const qint64 push_end_us = static_cast<qint64>(chiaki_time_now_monotonic_us());
             logLatencyStats("pl_queue_push", push_end_us - push_begin_us);
             CHIAKI_NOISY_DEBUG().nospace()
@@ -5236,7 +5245,7 @@ renderer_backend_ready:
                 }
                 if (frame_mix_in_use)
                     qCWarning(chiakiGui) << "Resetting the frame queue while a render still uses it after waiting 1 s";
-                pl_queue_reset(placebo_queue);
+                pl_queue_reset(placebo_queue); farplay::Stats::instance().notePresent(8); // FARPLAY: diagnostic
                 placebo_queue_resets++;
                 queue_rollback_pending = false;
                 newest_queued_frame_pts = -1.0;
@@ -6908,6 +6917,17 @@ void QmlMainWindow::render()
     } else {
         TimedMutexLocker locker(placebo_state_mutex, "render_queue_update");
         queue_depth_before_update = pl_queue_num_frames(placebo_queue);
+        // FARPLAY: la frame gen vise un instant entre deux images de la file : l'instant
+        // visé ne dépasse jamais la dernière image poussée (sinon pas d'image suivante B).
+        bool farplay_clamped = false;
+        if (farplay::FrameGen::instance().internalActive() && playback_started
+            && queue_pts_origin >= 0.0 && newest_queued_frame_pts >= queue_pts_origin) {
+            const double farplay_newest = newest_queued_frame_pts - queue_pts_origin;
+            if (qparams.pts > farplay_newest - 0.001) {
+                qparams.pts = qMax(0.0, farplay_newest - 0.001);
+                farplay_clamped = true;
+            }
+        }
         const qint64 queue_update_work_begin_us = static_cast<qint64>(chiaki_time_now_monotonic_us());
         queue_status = pl_queue_update(placebo_queue, &frame_mix, &qparams);
         queue_depth_cached.storeRelease(pl_queue_num_frames(placebo_queue));
@@ -6949,6 +6969,10 @@ void QmlMainWindow::render()
             }
         }
         frame_mix_in_use = true;
+        // FARPLAY: diagnostic de la file pour la frame gen (profondeur, avance de la dernière image sur la cible)
+        if (farplay::FrameGen::instance().internalActive())
+            farplay::Stats::instance().noteQueueDiag(pl_queue_num_frames(placebo_queue),
+                (newest_queued_frame_pts - queue_pts_origin - qparams.pts) * 1000.0, kept_frame_enqueued, farplay_clamped);
         frame_mix_resets = placebo_queue_resets;
     }
     struct FrameMixRelease
