@@ -103,6 +103,7 @@ public:
     // new_image = image différente de la précédente (à 120 Hz en x2, chaque image est présentée deux fois)
     void onFrameGenOutput(bool generated, bool new_image, double pyramid_ms, double flow_ms, double synth_ms);
     void setFrameGenDelay(double ms);
+    void setFsrStatus(const QString &s) { QMutexLocker l(&mutex); fsr_status = s; }
     static constexpr double kBudgetFrameGenMs = 4.0;
     // Âge de la dernière image source (µs), ou -1 si aucune.
     int64_t lastSourceAgeUs() const;
@@ -189,6 +190,7 @@ private:
     int csv_ticks = 0;
 
     QVariantMap snap;
+    QString fsr_status;
     QTimer timer;
     QString mono_font;
     QString ui_font;

@@ -12,10 +12,13 @@
 #pragma once
 
 #include "farplay/fgengine.h"
+#include "farplay/fsrframegen.h"
 
 #include <libplacebo/renderer.h>
 
 #include <QObject>
+#include <QMutex>
+#include <QString>
 #include <atomic>
 
 
@@ -35,6 +38,13 @@ class FrameGen : public QObject
     // Lissage du pacing : présentation sur une horloge régulière estimée à
     // partir des arrivées, avec une marge adaptée à la gigue mesurée.
     Q_PROPERTY(bool pacing READ pacing WRITE setPacing NOTIFY changed)
+    // Moteur de la frame gen interne : 0 = Farplay (flux optique maison),
+    // 1 = AMD FSR (4.0 IA sur RX 9000, 3.1 sinon ; repli automatique sur Farplay)
+    Q_PROPERTY(int engine READ engine WRITE setEngine NOTIFY changed)
+    // Mouvement fourni à FSR : 0 = aucun (flux interne de FSR), 1 = flux Farplay
+    Q_PROPERTY(int fsrMotion READ fsrMotion WRITE setFsrMotion NOTIFY changed)
+    // État de FSR pour l'interface (version ou raison de l'indisponibilité)
+    Q_PROPERTY(QString fsrStatus READ fsrStatus NOTIFY fsrStatusChanged)
 
 public:
     static FrameGen &instance();
@@ -51,6 +61,11 @@ public:
     bool amdGpu() const { return amd_; }
     bool pacing() const { return pacing_.load(std::memory_order_relaxed); }
     void setPacing(bool v);
+    int engine() const { return engine_sel_.load(std::memory_order_relaxed); }
+    void setEngine(int v);
+    int fsrMotion() const { return fsr_motion_.load(std::memory_order_relaxed); }
+    void setFsrMotion(int v);
+    QString fsrStatus() const;
 
     // Présentation cadencée par l'horloge des images (frame gen ou lissage).
     bool timedPresentation() const { return internalActive() || pacing(); }
@@ -74,7 +89,7 @@ public:
     bool internalActive() const { return mode() == 1 && !suspended(); }
 
     // --- thread de rendu ---
-    void initGpu(pl_gpu gpu, pl_log log);
+    void initGpu(pl_gpu gpu, pl_log log, pl_vulkan vk = nullptr);
     void destroyGpu();
     // Retard de présentation (s) à appliquer à l'horloge de pl_queue.
     double presentDelaySeconds(double source_interval_s) const;
@@ -89,6 +104,7 @@ public:
 
 signals:
     void changed();
+    void fsrStatusChanged();
 
 private:
     explicit FrameGen(QObject *parent = nullptr);
@@ -99,6 +115,16 @@ private:
     std::atomic<bool> hud_{true};
     std::atomic<bool> suspended_{false};
     std::atomic<bool> pacing_{true};
+    std::atomic<int> engine_sel_{1};
+    std::atomic<int> fsr_motion_{0};
+    // FSR (thread de rendu)
+    FsrFrameGen fsr_;
+    uint64_t fsr_a_ = 0, fsr_b_ = 0;  // paire dont fsr_out_ est l'image du milieu
+    pl_tex fsr_out_ = nullptr;
+    bool fsr_out_valid_ = false;
+    mutable QMutex fsr_status_mutex_;
+    QString fsr_status_;
+    void publishFsrStatus();
     std::atomic<double> margin_ms_{3.0};
     mutable std::atomic<double> audio_delay_ms_{0.0};
 

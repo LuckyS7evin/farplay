@@ -48,6 +48,8 @@ public:
     // Le flux de la paire est calculé au premier appel puis réutilisé.
     // Retourne la texture de sortie (propriété du moteur) ou nullptr.
     pl_tex synthesize(uint64_t sig_a, uint64_t sig_b, float t, bool hud_protect);
+    // Flux de la paire (A→B, coordonnées normalisées, RGBA32F), calculé si besoin.
+    pl_tex flowFor(uint64_t sig_a, uint64_t sig_b);
 
     Timings timings();
     pl_fmt rgbaFormat() const { return fmt_rgba_; }

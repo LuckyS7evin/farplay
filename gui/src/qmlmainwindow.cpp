@@ -5065,7 +5065,42 @@ void QmlMainWindow::init(Settings *settings, bool exit_app_on_stream_exit)
             VK_KHR_VIDEO_DECODE_QUEUE_EXTENSION_NAME,
             VK_KHR_VIDEO_DECODE_H264_EXTENSION_NAME,
             VK_KHR_VIDEO_DECODE_H265_EXTENSION_NAME,
+            // FARPLAY: extensions utilisées par la frame gen IA d'AMD (FSR 4), si disponibles
+            "VK_KHR_cooperative_matrix",
+            "VK_EXT_shader_float8",
         };
+        // FARPLAY: fonctions GPU de FSR 4 (activées seulement si le GPU les propose)
+        static VkPhysicalDeviceCooperativeMatrixFeaturesKHR farplay_coopmat = {};
+        farplay_coopmat.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR;
+        farplay_coopmat.cooperativeMatrix = VK_TRUE;
+        void *farplay_chain = &farplay_coopmat;
+#ifdef VK_EXT_SHADER_FLOAT8_EXTENSION_NAME
+        static VkPhysicalDeviceShaderFloat8FeaturesEXT farplay_f8 = {};
+        farplay_f8.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT8_FEATURES_EXT;
+        farplay_f8.shaderFloat8 = VK_TRUE;
+        farplay_f8.shaderFloat8CooperativeMatrix = VK_TRUE;
+        farplay_f8.pNext = farplay_chain;
+        farplay_chain = &farplay_f8;
+#endif
+        static VkPhysicalDeviceVulkan13Features farplay_v13 = {};
+        farplay_v13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+        farplay_v13.subgroupSizeControl = VK_TRUE;
+        farplay_v13.computeFullSubgroups = VK_TRUE;
+        farplay_v13.synchronization2 = VK_TRUE;
+        farplay_v13.shaderIntegerDotProduct = VK_TRUE;
+        farplay_v13.pNext = farplay_chain;
+        static VkPhysicalDeviceVulkan12Features farplay_v12 = {};
+        farplay_v12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+        farplay_v12.shaderFloat16 = VK_TRUE;
+        farplay_v12.shaderInt8 = VK_TRUE;
+        farplay_v12.storageBuffer8BitAccess = VK_TRUE;
+        farplay_v12.timelineSemaphore = VK_TRUE;
+        farplay_v12.pNext = &farplay_v13;
+        static VkPhysicalDeviceFeatures2 farplay_features = {};
+        farplay_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        farplay_features.features.shaderInt16 = VK_TRUE;
+        farplay_features.features.shaderStorageImageWriteWithoutFormat = VK_TRUE;
+        farplay_features.pNext = &farplay_v12;
 
         struct pl_vulkan_params vulkan_params = {
             .instance = placebo_vk_inst->instance,
@@ -5074,7 +5109,8 @@ void QmlMainWindow::init(Settings *settings, bool exit_app_on_stream_exit)
             PL_VULKAN_DEFAULTS
             .extra_queues = VK_QUEUE_VIDEO_DECODE_BIT_KHR,
             .opt_extensions = opt_dev_extensions,
-            .num_opt_extensions = 4,
+            .num_opt_extensions = 6, // FARPLAY: + 2 (FSR 4)
+            .features = &farplay_features, // FARPLAY:
         };
         placebo_vulkan = pl_vulkan_create(placebo_log, &vulkan_params);
         if (!placebo_vulkan) {
@@ -5394,7 +5430,7 @@ renderer_backend_ready:
     this->renderparams_changed = true;
     this->fsr_hook = load_mpv_hook(placeboGpu(), QStringLiteral(":/shaders/FSR.glsl"));
     farplay::Image::instance().initGpu(placeboGpu()); // FARPLAY:
-    farplay::FrameGen::instance().initGpu(placeboGpu(), placebo_log); // FARPLAY:
+    farplay::FrameGen::instance().initGpu(placeboGpu(), placebo_log, placebo_vulkan); // FARPLAY:
     this->fsrcnnx_hook_8 = load_mpv_hook(placeboGpu(), QStringLiteral(":/shaders/FSRCNNX_x2_8-0-4-1.glsl"));
     this->fsrcnnx_hook_16 = load_mpv_hook(placeboGpu(), QStringLiteral(":/shaders/FSRCNNX_x2_16-0-4-1.glsl"));
 

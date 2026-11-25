@@ -21,7 +21,7 @@ FpGlass {
     readonly property int modeNormal: 0
     readonly property int modeStretch: 1
     readonly property int modeZoom: 2
-    readonly property var navItems: [fgSwitch, multSeg, upSeg, sharpSlider, denoiseSeg, debandSeg, overlaySeg, pacingSwitch, volSlider, micSwitch, modeSeg, zoomSlider]
+    readonly property var navItems: [fgSwitch, multSeg, engineSeg, fsrMotionSeg, upSeg, sharpSlider, denoiseSeg, debandSeg, overlaySeg, pacingSwitch, volSlider, micSwitch, modeSeg, zoomSlider]
 
     width: 1040   // integrator may override (e.g. Math.min(1040, window.width - 48))
     implicitHeight: Math.min(col.implicitHeight, maxHeight > 0 ? maxHeight - 56 : col.implicitHeight) + 56
@@ -141,6 +141,40 @@ FpGlass {
                     Keys.onUpPressed: panel.nav(multSeg, -1)
                     Keys.onDownPressed: panel.nav(multSeg, 1)
                     KeyNavigation.left: panel.cols === 2 ? fgSwitch : null
+                }
+            }
+            FpSettingRow {
+                boxed: true
+                Layout.preferredHeight: 84
+                title: "Moteur FG"
+                description: FarplayFrameGen.engine === 1 ? (FarplayFrameGen.fsrStatus || "AMD FSR") : "Flux optique Farplay"
+                FpSegmented {
+                    id: engineSeg
+                    enabled: FarplayFrameGen.mode === 1
+                    model: ["Farplay", "AMD FSR"]
+                    minSegWidth: 64
+                    currentIndex: FarplayFrameGen.engine
+                    onActivated: (i) => FarplayFrameGen.engine = i
+                    Keys.onUpPressed: panel.nav(engineSeg, -1)
+                    Keys.onDownPressed: panel.nav(engineSeg, 1)
+                    KeyNavigation.right: panel.cols === 2 ? fsrMotionSeg : null
+                }
+            }
+            FpSettingRow {
+                boxed: true
+                Layout.preferredHeight: 84
+                title: "Mouvement pour FSR"
+                description: "Guide fourni à FSR"
+                FpSegmented {
+                    id: fsrMotionSeg
+                    enabled: FarplayFrameGen.mode === 1 && FarplayFrameGen.engine === 1
+                    model: ["Aucun", "Farplay"]
+                    minSegWidth: 64
+                    currentIndex: FarplayFrameGen.fsrMotion
+                    onActivated: (i) => FarplayFrameGen.fsrMotion = i
+                    Keys.onUpPressed: panel.nav(fsrMotionSeg, -1)
+                    Keys.onDownPressed: panel.nav(fsrMotionSeg, 1)
+                    KeyNavigation.left: panel.cols === 2 ? engineSeg : null
                 }
             }
             FpSettingRow {

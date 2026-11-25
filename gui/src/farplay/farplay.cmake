@@ -10,9 +10,16 @@ target_sources(chiaki PRIVATE
 	src/farplay/fgengine.cpp
 	include/farplay/farplayframegen.h
 	src/farplay/farplayframegen.cpp
+	include/farplay/fsrframegen.h
+	src/farplay/fsrframegen.cpp
 	res/farplay/farplay.qrc
 	res/farplay/assets.qrc
 )
+
+# En-têtes (MIT) du FidelityFX SDK 2.4 d'AMD : frame gen FSR chargée à l'exécution.
+target_include_directories(chiaki PRIVATE
+	${CMAKE_CURRENT_SOURCE_DIR}/../third-party/fidelityfx-sdk/Kits/FidelityFX/api/include
+	${CMAKE_CURRENT_SOURCE_DIR}/../third-party/fidelityfx-sdk/Kits/FidelityFX/framegeneration/include)
 
 if(NOT FARPLAY_GIT_HASH)
 	find_package(Git QUIET)

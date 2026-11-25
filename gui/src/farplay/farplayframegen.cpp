@@ -52,6 +52,8 @@ FrameGen::FrameGen(QObject *parent)
     multiplier_.store(m == 0 || (m >= 2 && m <= 4) ? m : 2);
     hud_.store(st.value(QStringLiteral("framegen/hud_protect"), true).toBool());
     pacing_.store(st.value(QStringLiteral("framegen/pacing"), true).toBool());
+    engine_sel_.store(std::clamp(st.value(QStringLiteral("framegen/engine"), 1).toInt(), 0, 1));
+    fsr_motion_.store(std::clamp(st.value(QStringLiteral("framegen/fsr_motion"), 0).toInt(), 0, 1));
 }
 
 void FrameGen::registerQml(bool amd_gpu)
@@ -69,6 +71,8 @@ void FrameGen::save()
     st.setValue(QStringLiteral("framegen/multiplier"), multiplier());
     st.setValue(QStringLiteral("framegen/hud_protect"), hudProtect());
     st.setValue(QStringLiteral("framegen/pacing"), pacing());
+    st.setValue(QStringLiteral("framegen/engine"), engine());
+    st.setValue(QStringLiteral("framegen/fsr_motion"), fsrMotion());
     emit changed();
 }
 
@@ -98,6 +102,44 @@ void FrameGen::setHudProtect(bool v)
         hud_.store(v);
         save();
     }
+}
+
+void FrameGen::setEngine(int v)
+{
+    v = std::clamp(v, 0, 1);
+    if (v != engine()) {
+        engine_sel_.store(v);
+        save();
+    }
+}
+
+void FrameGen::setFsrMotion(int v)
+{
+    v = std::clamp(v, 0, 1);
+    if (v != fsrMotion()) {
+        fsr_motion_.store(v);
+        save();
+    }
+}
+
+QString FrameGen::fsrStatus() const
+{
+    QMutexLocker l(&fsr_status_mutex_);
+    return fsr_status_;
+}
+
+// Thread de rendu → interface (signal mis en file vers le thread GUI).
+void FrameGen::publishFsrStatus()
+{
+    const QString s = fsr_.status();
+    {
+        QMutexLocker l(&fsr_status_mutex_);
+        if (s == fsr_status_)
+            return;
+        fsr_status_ = s;
+    }
+    QMetaObject::invokeMethod(this, [this]() { emit fsrStatusChanged(); }, Qt::QueuedConnection);
+    Stats::instance().setFsrStatus(s);
 }
 
 void FrameGen::setPacing(bool v)
@@ -200,16 +242,24 @@ void FrameGen::toggleSuspended()
     emit changed();
 }
 
-void FrameGen::initGpu(pl_gpu gpu, pl_log log)
+void FrameGen::initGpu(pl_gpu gpu, pl_log log, pl_vulkan vk)
 {
     gpu_ok_ = engine_.init(gpu, log);
     if (!gpu_ok_)
         qWarning("Farplay: moteur de frame gen indisponible (formats GPU manquants)");
+    fsr_.init(vk, log);
+    fsr_a_ = fsr_b_ = 0;
+    fsr_out_ = nullptr;
+    fsr_out_valid_ = false;
+    publishFsrStatus();
 }
 
 void FrameGen::destroyGpu()
 {
     last_show_ = nullptr;
+    fsr_out_ = nullptr;
+    fsr_out_valid_ = false;
+    fsr_.destroy();
     engine_.destroy();
     gpu_ok_ = false;
 }
@@ -301,11 +351,45 @@ bool FrameGen::render(pl_renderer renderer, const struct pl_frame_mix *mix,
         }
     }
 
+    // Moteur AMD FSR : une image du milieu par paire (x2), calculée dès que la
+    // paire (A, B) est connue ; repli sur le moteur Farplay en cas d'échec.
+    const bool use_fsr = interp && engine() == 1 && fsr_.usable();
+    if (use_fsr) {
+        t = t >= 0.5f ? 0.5f : 0.0f;
+        if (sig[0] != fsr_a_ || sig[1] != fsr_b_) {
+            // FSR interpole entre l'image courante précédente (son historique) et B :
+            // si la précédente n'était pas A, l'historique est rompu → reset.
+            const bool reset = sig[0] != fsr_b_;
+            pl_tex mv = nullptr;
+            float sx = 1.0f, sy = 1.0f;
+            if (fsrMotion() == 1) {
+                // Flux Farplay : A→B en coordonnées normalisées ; FSR attend, pour
+                // chaque pixel de B, le déplacement vers A en pixels (échelle négative).
+                mv = engine_.flowFor(sig[0], sig[1]);
+                if (mv) {
+                    sx = -static_cast<float>(mv->params.w);
+                    sy = -static_cast<float>(mv->params.h);
+                }
+            }
+            const bool pq = target->color.transfer == PL_COLOR_TRC_PQ;
+            const float peak = target->color.hdr.max_luma > 0.0f ? target->color.hdr.max_luma : 1000.0f;
+            const float dt_ms = 1000.0f / 30.0f; // flux PS5 à 30 images/s
+            fsr_out_ = fsr_.generate(tex[1], reset, mv, sx, sy, pq, peak, dt_ms);
+            fsr_out_valid_ = fsr_out_ && !reset;
+            fsr_a_ = sig[0];
+            fsr_b_ = sig[1];
+            publishFsrStatus();
+        }
+    }
+
     // Même image qu'à la vsync précédente (ex. x2 à 120 Hz) : pas de nouvelle synthèse.
     const bool new_image = !(sig[0] == last_sig_a_ && sig[1] == last_sig_b_ && t == last_t_ && last_show_);
     pl_tex show = tex[0];
     if (t > 1e-3f) {
-        show = new_image ? engine_.synthesize(sig[0], sig[1], t, hudProtect()) : last_show_;
+        if (use_fsr)
+            show = fsr_out_valid_ ? fsr_out_ : tex[0];
+        else
+            show = new_image ? engine_.synthesize(sig[0], sig[1], t, hudProtect()) : last_show_;
         if (!show)
             return false;
     }

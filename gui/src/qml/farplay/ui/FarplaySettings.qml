@@ -464,6 +464,30 @@ FocusScope {
                         }
                         FpSettingRow {
                             divider: true
+                            title: "Moteur"
+                            description: "Farplay : léger, toutes cartes. AMD FSR : IA sur RX 9000 (FSR 4), x2 seulement ; repli automatique sur Farplay. État : " + (FarplayFrameGen.fsrStatus || "—")
+                            costs: ({ image: "+", gpu: "+" })
+                            FpSegmented {
+                                enabled: FarplayFrameGen.mode === 1
+                                model: ["Farplay", "AMD FSR"]
+                                currentIndex: FarplayFrameGen.engine
+                                onActivated: (i) => FarplayFrameGen.engine = i
+                            }
+                        }
+                        FpSettingRow {
+                            divider: true
+                            visible: FarplayFrameGen.engine === 1
+                            title: "Mouvement fourni à FSR"
+                            description: "Aucun : FSR calcule seul son flux optique. Farplay : notre flux sert de guide (calcul en plus, ~1,5 ms)."
+                            FpSegmented {
+                                enabled: FarplayFrameGen.mode === 1
+                                model: ["Aucun", "Flux Farplay"]
+                                currentIndex: FarplayFrameGen.fsrMotion
+                                onActivated: (i) => FarplayFrameGen.fsrMotion = i
+                            }
+                        }
+                        FpSettingRow {
+                            divider: true
                             title: "Multiplicateur"
                             description: "Images affichées pour chaque image reçue. « Écran » suit la fréquence du moniteur."
                             FpSegmented {

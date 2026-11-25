@@ -421,6 +421,7 @@ void Stats::tick()
     const int64_t now = (int64_t)chiaki_time_now_monotonic_us();
     RingStats src, disp, gframe, gblend, gup, gden;
     double fg_wait_pct = 0.0;
+    QString fsr_copy;
     double fg_calls_per_s = 0.0;
     QString fg_wait_detail;
     QString fg_queue_detail;
@@ -444,6 +445,7 @@ void Stats::tick()
         up = upscaler; up_factor = upscale_factor; peak = src_peak_nits;
         otrc = out_trc; oprim = out_prim; ow = out_width; oh = out_height;
         fgs = fg_state; fgg = fg_generated; fgd = fg_distinct;
+        fsr_copy = fsr_status;
         fg_wait_pct = fg_vsync_total ? 100.0 * fg_vsync_wait / fg_vsync_total : 0.0;
         fg_calls_per_s = fg_vsync_total / 0.5;
         if (fg_vsync_wait) {
@@ -629,6 +631,7 @@ void Stats::tick()
     // la cadence distincte vaut au moins celle du flux (jamais la fréquence écran).
     s[QStringLiteral("fpsDistinct")] = std::max(fps_distinct, fps_in);
     s[QStringLiteral("fgWaitPct")] = fg_wait_pct;
+    s[QStringLiteral("fsrStatus")] = fsr_copy;
     s[QStringLiteral("fgWaitDetail")] = fg_wait_detail;
     s[QStringLiteral("fgQueueDetail")] = fg_queue_detail;
     s[QStringLiteral("fgCallsPerSec")] = fg_calls_per_s; // rendus de la frame gen par seconde (devrait suivre l'écran)
@@ -673,7 +676,7 @@ void Stats::writeCsv(const QVariantMap &s)
                "upscaler,upscale_factor,gpu_upscale_avg_ms,gpu_upscale_p99_ms,out_resolution,output,src_peak_nits,"
                "requested_bitrate_mbps,target_bitrate_mbps,"
                "fg_state,fps_gen,fg_pyr_ms,fg_flow_ms,fg_synth_ms,fg_cost_ms,fg_delay_ms,"
-               "fps_out_1pct_low,pacing_margin_ms,audio_delay_ms,fps_distinct,gpu_denoise_avg_ms,fg_wait_pct,fg_calls_per_s,fg_wait_detail,fg_queue_detail\n";
+               "fps_out_1pct_low,pacing_margin_ms,audio_delay_ms,fps_distinct,gpu_denoise_avg_ms,fg_wait_pct,fg_calls_per_s,fg_wait_detail,fg_queue_detail,fsr_status\n";
         emit csvLoggingChanged();
     }
     const double t = ((int64_t)chiaki_time_now_monotonic_us() - session_start_us) / 1e6;
@@ -692,7 +695,7 @@ void Stats::writeCsv(const QVariantMap &s)
         << f("requestedBitrate") << ',' << f("targetBitrate") << ','
         << str("fgState") << ',' << f("fpsGen") << ',' << f("fgPyrMs") << ',' << f("fgFlowMs") << ','
         << f("fgSynthMs") << ',' << f("fgCostMs") << ',' << f("fgDelayMs") << ','
-        << f("fpsOut1Low") << ',' << f("pacingMarginMs") << ',' << f("audioDelayMs") << ',' << f("fpsDistinct") << ',' << f("gpuDenoiseAvg") << ',' << f("fgWaitPct") << ',' << f("fgCallsPerSec") << ",\"" << str("fgWaitDetail") << "\",\"" << str("fgQueueDetail") << "\"\n";
+        << f("fpsOut1Low") << ',' << f("pacingMarginMs") << ',' << f("audioDelayMs") << ',' << f("fpsDistinct") << ',' << f("gpuDenoiseAvg") << ',' << f("fgWaitPct") << ',' << f("fgCallsPerSec") << ",\"" << str("fgWaitDetail") << "\",\"" << str("fgQueueDetail") << "\",\"" << str("fsrStatus") << "\"\n";
     out.flush();
 }
 

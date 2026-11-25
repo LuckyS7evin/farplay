@@ -27,6 +27,7 @@ jobs:
       vcpkg_baseline: 5d4a3dc90c0b3773f3bac81bf41297b54328f471
       dep_folder: deps
       libplacebo_tag: v7.387.0
+      ffx_sdk_tag: v2.4.0
       sdl2_compat_tag: 2.32.74
       # Pinned (upstream used LunarG "latest.json"); matches the SPIRV-Cross tag below.
       vulkan_sdk_version: 1.4.363.1
@@ -264,6 +265,19 @@ jobs:
           cp "${{ github.workspace }}\${{ env.dep_folder }}\bin\shaderc_shared.dll" Farplay-Win
           cp "${{ github.workspace }}\${{ env.dep_folder }}\bin\spirv-cross-c-shared.dll" Farplay-Win
           windeployqt.exe --no-translations --qmldir=gui\src\qml --release Farplay-Win\farplay.exe
+
+      # Frame gen AMD FSR (FidelityFX SDK 2.4, backend Vulkan) : DLL signées d'AMD,
+      # redistribuées telles quelles avec leur licence (binaire seulement), chargées
+      # à l'exécution par Farplay. Sans elles, Farplay utilise sa frame gen maison.
+      - name: AMD FidelityFX runtime (FSR frame generation, Vulkan)
+        run: |
+          $base = "https://raw.githubusercontent.com/GPUOpen-LibrariesAndSDKs/FidelityFX-SDK/${{ env.ffx_sdk_tag }}"
+          foreach ($f in "amd_fidelityfx_loader_vk.dll", "amd_fidelityfx_framegeneration_vk.dll") {
+            Invoke-WebRequest -UseBasicParsing -Uri "$base/Kits/FidelityFX/signedbin/$f" -OutFile "Farplay-Win\$f"
+          }
+          New-Item -ItemType Directory -Force -Path Farplay-Win\licenses | Out-Null
+          Invoke-WebRequest -UseBasicParsing -Uri "$base/Kits/FidelityFX/docs/license.md" -OutFile "Farplay-Win\licenses\AMD-FidelityFX-SDK-LICENSE.md"
+          Get-ChildItem Farplay-Win\amd_fidelityfx_*.dll | ForEach-Object { "{0} {1:N1} Mo" -f $_.Name, ($_.Length / 1MB) }
 
       # Le dossier est envoyé tel quel : GitHub le zippe une seule fois au
       # téléchargement (plus de zip dans le zip).

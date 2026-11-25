@@ -137,6 +137,12 @@ Rectangle {
             Key { text: "Attente FG"; visible: !!overlay.s.fgWaitDetail && overlay.s.fgWaitPct > 0 }
             Val { text: overlay.s.fgWaitDetail || ""; color: overlay.cDim; visible: !!overlay.s.fgWaitDetail && overlay.s.fgWaitPct > 0 }
 
+            Key { text: "Moteur FG" }
+            Val {
+                text: FarplayFrameGen.engine === 1 ? "AMD " + (overlay.s.fsrStatus || FarplayFrameGen.fsrStatus || "FSR") + (FarplayFrameGen.fsrMotion === 1 ? " · guidé par le flux Farplay" : "") : "Farplay (flux optique maison)"
+                color: (overlay.s.fsrStatus || "").indexOf("erreur") >= 0 || (overlay.s.fsrStatus || "").indexOf("indisponible") >= 0 ? overlay.cAlert : overlay.cIvory
+            }
+
             Key { text: "File FG"; visible: overlay.s.fgActive !== undefined && !!overlay.s.fgQueueDetail }
             Val { text: overlay.s.fgQueueDetail || ""; color: overlay.cDim; wrapMode: Text.WordWrap; Layout.maximumWidth: 520; visible: !!overlay.s.fgQueueDetail }
 

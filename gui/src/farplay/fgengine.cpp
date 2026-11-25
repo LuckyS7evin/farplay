@@ -408,6 +408,22 @@ bool FgEngine::computeFlow(Slot &a, Slot &b)
     return true;
 }
 
+pl_tex FgEngine::flowFor(uint64_t sig_a, uint64_t sig_b)
+{
+    Slot *a = find(sig_a);
+    Slot *b = find(sig_b);
+    if (!a || !b || !a->valid || !b->valid)
+        return nullptr;
+    if (!flow_valid_ || flow_a_ != sig_a || flow_b_ != sig_b) {
+        if (!computeFlow(*a, *b))
+            return nullptr;
+        flow_a_ = sig_a;
+        flow_b_ = sig_b;
+        flow_valid_ = true;
+    }
+    return flow_smooth_;
+}
+
 pl_tex FgEngine::synthesize(uint64_t sig_a, uint64_t sig_b, float t, bool hud_protect)
 {
     Slot *a = find(sig_a);

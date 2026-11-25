@@ -13,3 +13,9 @@ Composants tiers ajoutés par Farplay :
 
 Les composants tiers hérités de chiaki-ng gardent leurs licences d'origine
 (voir LICENSES/ et third-party/).
+
+AMD FidelityFX SDK 2.4 (frame generation FSR) — en-têtes sous licence MIT
+(third-party/fidelityfx-sdk) ; DLL signées amd_fidelityfx_loader_vk.dll et
+amd_fidelityfx_framegeneration_vk.dll redistribuées non modifiées, en binaire
+seulement, sous la licence AMD jointe (licenses/AMD-FidelityFX-SDK-LICENSE.md).
+Copyright (C) Advanced Micro Devices, Inc.
