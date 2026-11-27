@@ -35,6 +35,7 @@ FarplayDialog 1.0 FarplayDialog.qml
 FpTextField 1.0 FpTextField.qml
 FpPage 1.0 FpPage.qml
 FpScrollBar 1.0 FpScrollBar.qml
+FpWindowControls 1.0 FpWindowControls.qml
 FpNav 1.0 FpNav.qml
 FarplayStreamBar 1.0 FarplayStreamBar.qml
 FarplayStreamOverlay 1.0 FarplayStreamOverlay.qml

@@ -2888,10 +2888,11 @@ void QmlMainWindow::setSettings(Settings *new_settings)
     settings = new_settings;
     QString profile = settings->GetCurrentProfile();
     qCCritical(chiakiGui) << "Current Profile: " << profile;
+    // FARPLAY: nom affiché (barre des tâches)
     if(profile.isEmpty())
-        QGuiApplication::setApplicationDisplayName("chiaki-ng");
+        QGuiApplication::setApplicationDisplayName("Farplay");
     else
-        QGuiApplication::setApplicationDisplayName(QString("chiaki-ng:%1").arg(profile));
+        QGuiApplication::setApplicationDisplayName(QString("Farplay · %1").arg(profile));
     this->setTitle(QGuiApplication::applicationDisplayName());
 }
 
@@ -2920,6 +2921,8 @@ void QmlMainWindow::show()
     }
     auto screen_size = QGuiApplication::primaryScreen()->availableSize();
     resize(screen_size);
+    // FARPLAY: pas de barre de titre Windows, l'interface porte ses propres commandes
+    setFlags(flags() | Qt::FramelessWindowHint);
 
     if (qEnvironmentVariable("XDG_CURRENT_DESKTOP") == "gamescope")
         fullscreenTime();

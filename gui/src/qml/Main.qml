@@ -128,6 +128,13 @@ Item {
         stack.push(url, props || {});
     }
 
+    // FARPLAY: commandes de fenêtre intégrées (fenêtre sans barre de titre Windows)
+    Loader {
+        anchors.fill: parent
+        z: 3000
+        source: "qrc:/farplay/ui/FpWindowControls.qml"
+    }
+
     // FARPLAY: animation de démarrage (une seule fois, ignorable) ; l'accueil se charge dessous
     Loader {
         id: fpSplash
