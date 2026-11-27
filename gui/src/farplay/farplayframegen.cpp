@@ -215,7 +215,7 @@ void FrameGen::estimateJitter()
     // +0,3 % à 29,9 fps, soit 20 ms sur 8 s, ce qui faisait viser trop tard).
     // Base = droite + 5e centile des écarts ; marge = 95e − 5e centile + 2 ms.
     const int n = std::min(num_arrivals_, kFit);
-    if (n < 10)
+    if (n < 30) // ≈ 1 s de mesures avant de piloter l'horloge (pente fiable)
         return;
     double t[kFit], o[kFit];
     for (int k = 0; k < n; k++) {
@@ -231,7 +231,7 @@ void FrameGen::estimateJitter()
     }
     const double den = n * stt - st * st;
     double slope = den > 1e-12 ? (n * sto - st * so) / den : 0.0;
-    slope = std::clamp(slope, -0.01, 0.01);
+    slope = std::clamp(slope, -0.005, 0.005);
     const double icpt = (so - slope * st) / n;
     double res[kFit];
     for (int k = 0; k < n; k++)
@@ -258,11 +258,17 @@ bool FrameGen::displayPts(int64_t now_us, double queue_origin_s, double vsync_s,
     const double dt = std::clamp(now - base_t_.load(std::memory_order_relaxed), 0.0, 0.5);
     const double base = base_offset_.load(std::memory_order_relaxed) + base_slope_.load(std::memory_order_relaxed) * dt;
     double pts = now - base - queue_origin_s + vsync_s - delay_s;
-    // pl_queue exige des pts croissants : une nouvelle estimation ne fait pas reculer la cible.
-    if (queue_origin_s == last_origin_ && pts < last_out_pts_)
-        pts = last_out_pts_;
+    // pl_queue exige des pts croissants. Si l'estimation passe derrière la cible
+    // précédente (ex. horloge partie trop en avance au démarrage), on ne la bloque
+    // pas : on la fait avancer à mi-vitesse jusqu'à rejoindre l'estimation, sinon
+    // elle resterait en avance pour toujours (le temps réel avance au même rythme).
+    if (queue_origin_s == last_origin_ && last_now_ > 0.0 && pts < last_out_pts_) {
+        const double step = std::clamp(now - last_now_, 0.0, 0.05);
+        pts = last_out_pts_ + 0.5 * step;
+    }
     last_out_pts_ = pts;
     last_origin_ = queue_origin_s;
+    last_now_ = now;
     *out_pts = pts;
     return true;
 }
