@@ -259,6 +259,8 @@ void FrameGen::destroyGpu()
     last_show_ = nullptr;
     fsr_out_ = nullptr;
     fsr_out_valid_ = false;
+    if (fsr_in_ && engine_.gpu())
+        pl_tex_destroy(engine_.gpu(), &fsr_in_);
     fsr_.destroy();
     engine_.destroy();
     gpu_ok_ = false;
@@ -374,7 +376,23 @@ bool FrameGen::render(pl_renderer renderer, const struct pl_frame_mix *mix,
             const bool pq = target->color.transfer == PL_COLOR_TRC_PQ;
             const float peak = target->color.hdr.max_luma > 0.0f ? target->color.hdr.max_luma : 1000.0f;
             const float dt_ms = 1000.0f / 30.0f; // flux PS5 à 30 images/s
-            fsr_out_ = fsr_.generate(tex[1], reset, mv, sx, sy, pq, peak, dt_ms);
+            // FSR attend une image d'écran encodée : 8 bits sRGB (SDR) ou 10 bits PQ
+            // (HDR). Nos slots sont en flottant 16 bits mais encodés comme la sortie,
+            // ce que FSR prendrait pour du linéaire (scRGB) → images générées d'une
+            // autre luminosité que les vraies (scintillement). On lui passe une copie.
+            pl_fmt in_fmt = pl_find_named_fmt(engine_.gpu(), pq ? "rgb10a2" : "rgba8");
+            pl_tex fsr_src = nullptr;
+            if (in_fmt) {
+                struct pl_tex_params ip = {};
+                ip.w = tex[1]->params.w;
+                ip.h = tex[1]->params.h;
+                ip.format = in_fmt;
+                ip.sampleable = true;
+                ip.renderable = true;
+                if (pl_tex_recreate(engine_.gpu(), &fsr_in_, &ip) && engine_.copyInto(tex[1], fsr_in_))
+                    fsr_src = fsr_in_;
+            }
+            fsr_out_ = fsr_src ? fsr_.generate(fsr_src, reset, mv, sx, sy, pq, peak, dt_ms) : nullptr;
             fsr_out_valid_ = fsr_out_ && !reset;
             fsr_a_ = sig[0];
             fsr_b_ = sig[1];

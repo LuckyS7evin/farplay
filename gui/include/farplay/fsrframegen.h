@@ -75,7 +75,8 @@ private:
     struct Vk;
     Vk *vkf_ = nullptr;
 
-    pl_tex out_ = nullptr;       // image générée (RGBA16F, stockable)
+    pl_tex out_ = nullptr;       // image générée (format de l'entrée, stockable)
+    pl_fmt out_fmt_ = nullptr;
     pl_tex depth_ = nullptr;     // profondeur constante (R32F)
     pl_tex zero_mv_ = nullptr;   // vecteurs nuls (RG16F)
 

@@ -121,6 +121,7 @@ private:
     FsrFrameGen fsr_;
     uint64_t fsr_a_ = 0, fsr_b_ = 0;  // paire dont fsr_out_ est l'image du milieu
     pl_tex fsr_out_ = nullptr;
+    pl_tex fsr_in_ = nullptr;   // copie 8/10 bits de B pour FSR
     bool fsr_out_valid_ = false;
     mutable QMutex fsr_status_mutex_;
     QString fsr_status_;

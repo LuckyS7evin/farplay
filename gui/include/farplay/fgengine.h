@@ -50,9 +50,12 @@ public:
     pl_tex synthesize(uint64_t sig_a, uint64_t sig_b, float t, bool hud_protect);
     // Flux de la paire (A→B, coordonnées normalisées, RGBA32F), calculé si besoin.
     pl_tex flowFor(uint64_t sig_a, uint64_t sig_b);
+    // Copie (avec conversion de format) d'une texture dans une autre, même taille.
+    bool copyInto(pl_tex src, pl_tex dst);
 
     Timings timings();
     pl_fmt rgbaFormat() const { return fmt_rgba_; }
+    pl_gpu gpu() const { return gpu_; }
     // Banc de test : textures lisibles/écrivables depuis le CPU.
     void setHostIo(bool on) { host_io_ = on; }
     pl_tex debugFlow(int level) const { return level < 0 ? flow_smooth_ : flow_[level]; }

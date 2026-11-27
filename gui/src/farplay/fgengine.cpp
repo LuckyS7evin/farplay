@@ -408,6 +408,14 @@ bool FgEngine::computeFlow(Slot &a, Slot &b)
     return true;
 }
 
+bool FgEngine::copyInto(pl_tex src, pl_tex dst)
+{
+    if (!src || !dst)
+        return false;
+    pl_shader_desc d = texDesc("src", src);
+    return pass(dst, "fg-copy", "", "    color = texture(src, fp_pos);\n", &d, 1, nullptr, 0);
+}
+
 pl_tex FgEngine::flowFor(uint64_t sig_a, uint64_t sig_b)
 {
     Slot *a = find(sig_a);

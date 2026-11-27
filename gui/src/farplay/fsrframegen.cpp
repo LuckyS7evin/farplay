@@ -316,8 +316,22 @@ bool FsrFrameGen::ensureAux(int w, int h, int rw, int rh)
     };
     // Profondeur constante (scène « plate » à mi-distance) et vecteurs nuls,
     // comme pour une vidéo : FSR s'appuie alors sur son propre flux optique.
-    return make(&out_, "rgba16f", w, h, true, false, 0.0f)
-        && make(&depth_, "r32f", rw, rh, false, true, 0.9f)
+    // Sortie au format de l'entrée (8 bits sRGB en SDR, 10 bits PQ en HDR), stockable.
+    if (!out_ || out_->params.w != w || out_->params.h != h || out_->params.format != out_fmt_) {
+        pl_tex_destroy(gpu_, &out_);
+        if (!out_fmt_ || !(out_fmt_->caps & PL_FMT_CAP_STORABLE))
+            return false;
+        struct pl_tex_params p = {};
+        p.w = w;
+        p.h = h;
+        p.format = out_fmt_;
+        p.sampleable = true;
+        p.storable = true;
+        out_ = pl_tex_create(gpu_, &p);
+        if (!out_)
+            return false;
+    }
+    return make(&depth_, "r32f", rw, rh, false, true, 0.9f)
         && make(&zero_mv_, "rg16f", rw, rh, false, true, 0.0f);
 }
 
@@ -331,8 +345,13 @@ pl_tex FsrFrameGen::generate(pl_tex cur, bool reset, pl_tex mv, float mv_sx, flo
     // sinon la moitié de l'affichage.
     const int rw = mv ? mv->params.w : (std::max)(16, w / 2);
     const int rh = mv ? mv->params.h : (std::max)(16, h / 2);
-    if (!ensureContext(w, h, cur->params.format, hdr_pq) || !ensureAux(w, h, rw, rh))
+    out_fmt_ = cur->params.format;
+    if (!ensureContext(w, h, cur->params.format, hdr_pq))
         return nullptr;
+    if (!ensureAux(w, h, rw, rh)) {
+        fail(QStringLiteral("textures auxiliaires (format de sortie non stockable ?)"));
+        return nullptr;
+    }
     if (!mv) {
         mv = zero_mv_;
         mv_sx = mv_sy = 1.0f;

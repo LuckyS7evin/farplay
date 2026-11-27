@@ -170,3 +170,4 @@ Source de vérité : `docs/cahier-des-charges.md`. Ce journal remplace la ré-ex
 - Périphérique Vulkan : extensions optionnelles VK_KHR_cooperative_matrix, VK_EXT_shader_float8 et fonctions (float16/int8, subgroup size control, synchronization2, dot product…) demandées si disponibles.
 - CI : DLL Vulkan + licence AMD téléchargées depuis le tag v2.4.0 du SDK.
 - Non mesuré : coût GPU de FSR (hors temps libplacebo).
+- Test prototype FSR (d3f8cc2d) : « AMD FSR 4.0.2 (IA) » chargé et actif sur RX 9070 XT, mais scintillement violent (luminosité qui alterne) dès qu'il y a du mouvement. Cause probable : nos slots sont en RGBA16F mais encodés comme la sortie (gamma SDR / PQ) ; FSR traite un backbuffer flottant comme du linéaire (scRGB) → images générées d'une autre luminosité. Correctif : copie de B en 8 bits (rgba8, transfert sRGB) en SDR ou 10 bits (rgb10a2, PQ) en HDR pour FSR, sortie au même format.
