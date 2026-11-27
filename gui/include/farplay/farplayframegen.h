@@ -19,6 +19,7 @@
 #include <QObject>
 #include <QMutex>
 #include <QString>
+#include <algorithm>
 #include <atomic>
 
 
@@ -45,6 +46,9 @@ class FrameGen : public QObject
     Q_PROPERTY(int fsrMotion READ fsrMotion WRITE setFsrMotion NOTIFY changed)
     // État de FSR pour l'interface (version ou raison de l'indisponibilité)
     Q_PROPERTY(QString fsrStatus READ fsrStatus NOTIFY fsrStatusChanged)
+    // Diagnostic FSR : 0 = normal, 1 = images générées seulement (pas d'alternance),
+    // 2 = vue de diagnostic AMD (non mémorisé)
+    Q_PROPERTY(int fsrDebug READ fsrDebug WRITE setFsrDebug NOTIFY changed)
 
 public:
     static FrameGen &instance();
@@ -66,6 +70,8 @@ public:
     int fsrMotion() const { return fsr_motion_.load(std::memory_order_relaxed); }
     void setFsrMotion(int v);
     QString fsrStatus() const;
+    int fsrDebug() const { return fsr_debug_.load(std::memory_order_relaxed); }
+    void setFsrDebug(int v) { v = std::clamp(v, 0, 2); if (v != fsrDebug()) { fsr_debug_.store(v); emit changed(); } }
 
     // Présentation cadencée par l'horloge des images (frame gen ou lissage).
     bool timedPresentation() const { return internalActive() || pacing(); }
@@ -117,6 +123,12 @@ private:
     std::atomic<bool> pacing_{true};
     std::atomic<int> engine_sel_{1};
     std::atomic<int> fsr_motion_{0};
+    std::atomic<int> fsr_debug_{0};
+    // Sonde de luminosité (image générée vs réelle), ~1 fois par seconde
+    pl_tex fsr_probe_ = nullptr;
+    int fsr_probe_count_ = 0;
+    QString fsr_probe_text_;
+    double probeLuma(pl_tex src);
     // FSR (thread de rendu)
     FsrFrameGen fsr_;
     uint64_t fsr_a_ = 0, fsr_b_ = 0;  // paire dont fsr_out_ est l'image du milieu

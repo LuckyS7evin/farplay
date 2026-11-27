@@ -164,7 +164,7 @@ FpGlass {
                 boxed: true
                 Layout.preferredHeight: 84
                 title: "Mouvement pour FSR"
-                description: "Guide fourni à FSR"
+                description: FarplayFrameGen.fsrDebug === 1 ? "Diagnostic : images générées seules" : "Guide fourni à FSR"
                 FpSegmented {
                     id: fsrMotionSeg
                     enabled: FarplayFrameGen.mode === 1 && FarplayFrameGen.engine === 1

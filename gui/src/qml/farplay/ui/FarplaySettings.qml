@@ -488,6 +488,18 @@ FocusScope {
                         }
                         FpSettingRow {
                             divider: true
+                            visible: FarplayFrameGen.engine === 1
+                            title: "Diagnostic FSR"
+                            description: "Images générées seules : affiche uniquement les images produites par FSR (sans alternance). Vue AMD : écran de diagnostic d'AMD. Non mémorisé."
+                            FpSegmented {
+                                enabled: FarplayFrameGen.mode === 1
+                                model: ["Normal", "Générées seules", "Vue AMD"]
+                                currentIndex: FarplayFrameGen.fsrDebug
+                                onActivated: (i) => FarplayFrameGen.fsrDebug = i
+                            }
+                        }
+                        FpSettingRow {
+                            divider: true
                             title: "Multiplicateur"
                             description: "Images affichées pour chaque image reçue. « Écran » suit la fréquence du moniteur."
                             FpSegmented {

@@ -128,10 +128,40 @@ QString FrameGen::fsrStatus() const
     return fsr_status_;
 }
 
+// Luminosité moyenne (0..1, valeurs encodées) d'une texture, par réduction
+// sur une petite texture lisible depuis le CPU (lecture synchrone, ~1/s).
+double FrameGen::probeLuma(pl_tex src)
+{
+    pl_gpu gpu = engine_.gpu();
+    if (!gpu || !src)
+        return -1.0;
+    struct pl_tex_params p = {};
+    p.w = 32;
+    p.h = 18;
+    p.format = pl_find_named_fmt(gpu, "rgba8");
+    p.sampleable = true;
+    p.renderable = true;
+    p.host_readable = true;
+    if (!p.format || !pl_tex_recreate(gpu, &fsr_probe_, &p) || !engine_.copyInto(src, fsr_probe_))
+        return -1.0;
+    uint8_t buf[32 * 18 * 4];
+    struct pl_tex_transfer_params tp = {};
+    tp.tex = fsr_probe_;
+    tp.ptr = buf;
+    if (!pl_tex_download(gpu, &tp))
+        return -1.0;
+    double sum = 0.0;
+    for (int i = 0; i < 32 * 18; i++)
+        sum += 0.2126 * buf[i * 4] + 0.7152 * buf[i * 4 + 1] + 0.0722 * buf[i * 4 + 2];
+    return sum / (32 * 18 * 255.0);
+}
+
 // Thread de rendu → interface (signal mis en file vers le thread GUI).
 void FrameGen::publishFsrStatus()
 {
-    const QString s = fsr_.status();
+    QString s = fsr_.status();
+    if (!fsr_probe_text_.isEmpty() && fsr_.usable())
+        s += QStringLiteral(" · ") + fsr_probe_text_;
     {
         QMutexLocker l(&fsr_status_mutex_);
         if (s == fsr_status_)
@@ -261,6 +291,8 @@ void FrameGen::destroyGpu()
     fsr_out_valid_ = false;
     if (fsr_in_ && engine_.gpu())
         pl_tex_destroy(engine_.gpu(), &fsr_in_);
+    if (fsr_probe_ && engine_.gpu())
+        pl_tex_destroy(engine_.gpu(), &fsr_probe_);
     fsr_.destroy();
     engine_.destroy();
     gpu_ok_ = false;
@@ -392,8 +424,16 @@ bool FrameGen::render(pl_renderer renderer, const struct pl_frame_mix *mix,
                 if (pl_tex_recreate(engine_.gpu(), &fsr_in_, &ip) && engine_.copyInto(tex[1], fsr_in_))
                     fsr_src = fsr_in_;
             }
-            fsr_out_ = fsr_src ? fsr_.generate(fsr_src, reset, mv, sx, sy, pq, peak, dt_ms) : nullptr;
+            fsr_out_ = fsr_src ? fsr_.generate(fsr_src, reset, mv, sx, sy, pq, peak, dt_ms, fsrDebug() == 2) : nullptr;
             fsr_out_valid_ = fsr_out_ && !reset;
+            // Diagnostic : luminosité de l'image générée face à la vraie image B.
+            if (fsr_out_ && ++fsr_probe_count_ >= 30) {
+                fsr_probe_count_ = 0;
+                const double lg = probeLuma(fsr_out_), lr = probeLuma(tex[1]);
+                if (lg >= 0.0 && lr >= 0.0)
+                    fsr_probe_text_ = QStringLiteral("lum. générée %1 / réelle %2")
+                        .arg(lg, 0, 'f', 2).arg(lr, 0, 'f', 2);
+            }
             fsr_a_ = sig[0];
             fsr_b_ = sig[1];
             publishFsrStatus();
@@ -411,6 +451,9 @@ bool FrameGen::render(pl_renderer renderer, const struct pl_frame_mix *mix,
         if (!show)
             return false;
     }
+    // Diagnostic « images générées seulement » : pas d'alternance avec les vraies.
+    if (use_fsr && fsrDebug() >= 1 && fsr_out_valid_)
+        show = fsr_out_;
     last_sig_a_ = sig[0];
     last_sig_b_ = sig[1];
     last_t_ = t;

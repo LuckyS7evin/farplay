@@ -336,7 +336,7 @@ bool FsrFrameGen::ensureAux(int w, int h, int rw, int rh)
 }
 
 pl_tex FsrFrameGen::generate(pl_tex cur, bool reset, pl_tex mv, float mv_sx, float mv_sy,
-                             bool hdr_pq, float max_nits, float frame_dt_ms)
+                             bool hdr_pq, float max_nits, float frame_dt_ms, bool debug_view)
 {
     if (!usable() || !cur)
         return nullptr;
@@ -441,7 +441,8 @@ pl_tex FsrFrameGen::generate(pl_tex cur, bool reset, pl_tex mv, float mv_sx, flo
     cfg.swapChain = nullptr;
     cfg.frameGenerationEnabled = true;
     cfg.allowAsyncWorkloads = false;
-    cfg.flags = FFX_FRAMEGENERATION_FLAG_NO_SWAPCHAIN_CONTEXT_NOTIFY;
+    cfg.flags = FFX_FRAMEGENERATION_FLAG_NO_SWAPCHAIN_CONTEXT_NOTIFY
+        | (debug_view ? FFX_FRAMEGENERATION_FLAG_DRAW_DEBUG_VIEW : 0u);
     cfg.onlyPresentGenerated = false;
     cfg.generationRect = { 0, 0, w, h };
     cfg.frameID = fid;
@@ -452,7 +453,8 @@ pl_tex FsrFrameGen::generate(pl_tex cur, bool reset, pl_tex mv, float mv_sx, flo
         ffxDispatchDescFrameGenerationPrepareV2 prep = {};
         prep.header.type = FFX_API_DISPATCH_DESC_TYPE_FRAMEGENERATION_PREPARE_V2;
         prep.frameID = fid;
-        prep.flags = FFX_FRAMEGENERATION_FLAG_NO_SWAPCHAIN_CONTEXT_NOTIFY;
+        prep.flags = FFX_FRAMEGENERATION_FLAG_NO_SWAPCHAIN_CONTEXT_NOTIFY
+        | (debug_view ? FFX_FRAMEGENERATION_FLAG_DRAW_DEBUG_VIEW : 0u);
         prep.commandList = cb;
         prep.renderSize = { static_cast<uint32_t>(rw), static_cast<uint32_t>(rh) };
         prep.jitterOffset = { 0.0f, 0.0f };

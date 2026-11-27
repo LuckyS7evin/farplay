@@ -46,7 +46,7 @@ public:
     // des pixels de `mv` (FSR : pixelSpaceMV = mv × scale). Retourne la texture de
     // sortie (propriété de l'objet) ou nullptr en cas d'échec.
     pl_tex generate(pl_tex cur, bool reset, pl_tex mv, float mv_sx, float mv_sy,
-                    bool hdr_pq, float max_nits, float frame_dt_ms);
+                    bool hdr_pq, float max_nits, float frame_dt_ms, bool debug_view = false);
 
 private:
     bool loadLibrary();
