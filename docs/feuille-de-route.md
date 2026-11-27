@@ -1,6 +1,6 @@
 # Farplay — feuille de route
 
-État au 24/11/2026. ✅ fait · 🧪 fait, à tester · ⏳ prévu · 💤 seulement si besoin.
+État au 27/11/2026. ✅ fait · 🧪 fait, à tester · ⏳ prévu · 💤 seulement si besoin.
 
 ## Phase 3 — Frame generation (en validation)
 
@@ -10,7 +10,9 @@
 | Lissage du pacing calé sur les arrivées | PushFPS | ✅ |
 | Son retardé du même délai que l'image | PushFPS, smoovplay | ✅ |
 | 1 % low dans l'overlay | PushFPS | ✅ |
-| Déblocage de la frame gen (profondeur de file, base d'horloge robuste) | Farplay | 🧪 |
+| Déblocage de la frame gen (file, horloge par régression, rattrapage progressif) | Farplay | 🧪 |
+| Frame gen AMD FSR 4.0.2 IA (Vulkan, SDK 2.4), choix du moteur, repli auto | AMD / PushFPS | ✅ (≈58 fps distincts, image jugée satisfaisante) |
+| Coût GPU de FSR dans l'overlay | Farplay | ⏳ |
 | Pas d'interpolation après une perte de paquets | smoovplay | 🧪 |
 | Validation : 60 fps stables, latence ajoutée ≤ 33 ms, HUD lisible | cahier des charges | ⏳ |
 | Pas d'interpolation sur un changement de plan | smoovplay, ConsoleEnhancer | ⏳ |
@@ -30,8 +32,9 @@
 | Couleurs nettes (chroma guidée par la luminance) | Farplay | 🧪 |
 | Archive de build simple, README avec captures | Farplay | 🧪 |
 | Navigation complète à la manette vérifiée partout | cahier des charges | ⏳ |
-| Post-traitement (F7) | cahier des charges | ⏳ |
+| Post-traitement (F7) : netteté, vibrance/saturation, contraste | cahier des charges, PushFPS | ⏳ |
 | Éditeur de masque HUD | cahier des charges | ⏳ |
+| Agrandisseur NIS (NVIDIA Image Scaling, MIT) au choix à côté de FSR 1 | PushFPS | ⏳ |
 | Petit réseau de super-résolution entraîné sur le flux PS5 (runtime Vulkan, ex. DLSSNR-AMD à évaluer) | cahier des charges | ⏳ |
 | Outil de mesure de latence (appui simulé → écran) | smoovplay | ⏳ |
 | Compteurs FEC / images clés dans l'overlay et le CSV | Nixani | ⏳ |
