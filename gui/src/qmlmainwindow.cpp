@@ -6956,9 +6956,13 @@ void QmlMainWindow::render()
         // FARPLAY: la frame gen vise un instant entre deux images de la file : l'instant
         // visé ne dépasse jamais la dernière image poussée (sinon pas d'image suivante B).
         bool farplay_clamped = false;
+        double farplay_raw_lead = 0.0;
+        bool farplay_has_lead = false;
         if (farplay::FrameGen::instance().internalActive() && playback_started
             && queue_pts_origin >= 0.0 && newest_queued_frame_pts >= queue_pts_origin) {
             const double farplay_newest = newest_queued_frame_pts - queue_pts_origin;
+            farplay_raw_lead = farplay_newest - qparams.pts; // avance réelle, avant garde-fou
+            farplay_has_lead = true;
             if (qparams.pts > farplay_newest - 0.001) {
                 qparams.pts = qMax(0.0, farplay_newest - 0.001);
                 farplay_clamped = true;
@@ -7006,12 +7010,11 @@ void QmlMainWindow::render()
         }
         frame_mix_in_use = true;
         // FARPLAY: diagnostic de la file pour la frame gen (profondeur, avance de la dernière image sur la cible)
-        if (farplay::FrameGen::instance().internalActive() && newest_queued_frame_pts >= queue_pts_origin
-            && queue_pts_origin >= 0.0 && playback_started)
-            farplay::FrameGen::instance().noteLead(newest_queued_frame_pts - queue_pts_origin - qparams.pts);
+        if (farplay_has_lead)
+            farplay::FrameGen::instance().noteLead(farplay_raw_lead);
         if (farplay::FrameGen::instance().internalActive())
             farplay::Stats::instance().noteQueueDiag(pl_queue_num_frames(placebo_queue),
-                (newest_queued_frame_pts - queue_pts_origin - qparams.pts) * 1000.0, kept_frame_enqueued, farplay_clamped);
+                farplay_raw_lead * 1000.0, kept_frame_enqueued, farplay_clamped);
         frame_mix_resets = placebo_queue_resets;
     }
     struct FrameMixRelease

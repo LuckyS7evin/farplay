@@ -194,6 +194,8 @@ void FrameGen::noteSourceArrival(int64_t now_us, double pts_s, bool lost)
         arrival_head_ = 0;
         base_valid_.store(false, std::memory_order_relaxed);
         lead_corr_.store(0.0, std::memory_order_relaxed);
+        lead_min_ = 1e9;
+        lead_n_ = 0;
     }
     last_offset_ = offset;
     offsets_[arrival_head_] = offset;
@@ -276,14 +278,23 @@ bool FrameGen::displayPts(int64_t now_us, double queue_origin_s, double vsync_s,
 
 void FrameGen::noteLead(double lead_s)
 {
-    // Boucle de correction : on veut que la dernière image poussée ait en
-    // moyenne ~12 ms d'avance sur l'instant visé (valeur des sessions saines).
-    // Trop peu d'avance → on recule la cible (correction +), trop → on l'avance.
-    // Intégrateur lent (≈ 0,4 s à 120 Hz) : la dent de scie d'une image à
-    // l'autre est filtrée, une erreur de modèle (dérive, mauvais départ) disparaît.
-    constexpr double kWanted = 0.012, kGain = 0.02, kMax = 0.2;
+    // Boucle de correction sur l'avance de la dernière image poussée sur l'instant
+    // visé, mesurée AVANT le garde-fou (sinon une horloge partie loin devant se lit
+    // « 1 ms » et n'est jamais rattrapée). On pilote le MINIMUM sur ~0,5 s : juste
+    // avant chaque arrivée l'avance doit rester positive (≈ 4 ms), sinon B manque
+    // et l'image n'est pas générée. Viser une moyenne laissait 25 % d'attentes.
+    // Asymétrique : on recule vite la cible quand B manque, on regagne la latence
+    // lentement quand l'avance est confortable.
+    constexpr double kWantedMin = 0.004, kUp = 0.7, kDown = 0.15, kMax = 1.0;
+    constexpr int kWindow = 60; // appels (≈ 0,5 s à 120 Hz)
+    lead_min_ = std::min(lead_min_, lead_s);
+    if (++lead_n_ < kWindow)
+        return;
+    const double err = kWantedMin - lead_min_;
+    lead_min_ = 1e9;
+    lead_n_ = 0;
     double c = lead_corr_.load(std::memory_order_relaxed);
-    c = std::clamp(c + kGain * (kWanted - lead_s), -kMax, kMax);
+    c = std::clamp(c + (err > 0.0 ? kUp : kDown) * err, -kMax, kMax);
     lead_corr_.store(c, std::memory_order_relaxed);
 }
 

@@ -158,6 +158,7 @@ private:
     std::atomic<double> base_slope_{0.0};   // dérive de la base (s par s)
     std::atomic<double> base_t_{0.0};
     std::atomic<double> lead_corr_{0.0}; // correction de la cible (s), boucle sur l'avance mesurée
+    double lead_min_ = 1e9; int lead_n_ = 0; // minimum de l'avance sur la fenêtre en cours (thread rendu)
     mutable double last_out_pts_ = -1.0, last_origin_ = -1.0, last_now_ = -1.0; // pts visé croissant (thread rendu)
     std::atomic<bool> base_valid_{false};
     void estimateJitter();
