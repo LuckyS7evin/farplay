@@ -346,6 +346,16 @@ pl_tex FsrFrameGen::generate(pl_tex cur, bool reset, pl_tex mv, float mv_sx, flo
     const int rw = mv ? mv->params.w : (std::max)(16, w / 2);
     const int rh = mv ? mv->params.h : (std::max)(16, h / 2);
     out_fmt_ = cur->params.format;
+    // FSR dimensionne ses ressources internes au premier envoi : si la taille ou
+    // le format des vecteurs change (choix « Aucun » / « Flux Farplay »), on
+    // recrée le contexte, sinon le nouveau réglage n'était pris qu'au redémarrage.
+    pl_fmt mv_fmt = mv ? mv->params.format : nullptr;
+    if (ctx_ && (rw != ctx_rw_ || rh != ctx_rh_ || mv_fmt != ctx_mv_fmt_))
+        destroyContext();
+    ctx_rw_ = rw;
+    ctx_rh_ = rh;
+    ctx_mv_fmt_ = mv_fmt;
+    reset = reset || !ctx_; // contexte neuf : pas d'historique
     if (!ensureContext(w, h, cur->params.format, hdr_pq))
         return nullptr;
     if (!ensureAux(w, h, rw, rh)) {

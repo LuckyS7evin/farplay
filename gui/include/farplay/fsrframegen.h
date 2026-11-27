@@ -77,6 +77,8 @@ private:
 
     pl_tex out_ = nullptr;       // image générée (format de l'entrée, stockable)
     pl_fmt out_fmt_ = nullptr;
+    int ctx_rw_ = 0, ctx_rh_ = 0;
+    pl_fmt ctx_mv_fmt_ = nullptr;
     pl_tex depth_ = nullptr;     // profondeur constante (R32F)
     pl_tex zero_mv_ = nullptr;   // vecteurs nuls (RG16F)
 

@@ -86,6 +86,8 @@ public:
     // (insensible à la dérive entre l'horloge de la PS5 et celle du PC).
     // false tant qu'il n'y a pas assez de mesures.
     bool displayPts(int64_t now_us, double queue_origin_s, double vsync_s, double delay_s, double *out_pts) const;
+    // Avance mesurée (s) de la dernière image poussée sur l'instant visé (thread de rendu).
+    void noteLead(double lead_s);
     // Marge anti-gigue actuelle (ms) et retard total appliqué à l'image (ms),
     // que le son doit aussi subir pour rester synchronisé.
     double jitterMarginMs() const { return margin_ms_.load(std::memory_order_relaxed); }
@@ -155,6 +157,7 @@ private:
     std::atomic<double> base_offset_{0.0};  // base à l'instant base_t_
     std::atomic<double> base_slope_{0.0};   // dérive de la base (s par s)
     std::atomic<double> base_t_{0.0};
+    std::atomic<double> lead_corr_{0.0}; // correction de la cible (s), boucle sur l'avance mesurée
     mutable double last_out_pts_ = -1.0, last_origin_ = -1.0, last_now_ = -1.0; // pts visé croissant (thread rendu)
     std::atomic<bool> base_valid_{false};
     void estimateJitter();

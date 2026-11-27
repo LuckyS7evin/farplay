@@ -7006,6 +7006,9 @@ void QmlMainWindow::render()
         }
         frame_mix_in_use = true;
         // FARPLAY: diagnostic de la file pour la frame gen (profondeur, avance de la dernière image sur la cible)
+        if (farplay::FrameGen::instance().internalActive() && newest_queued_frame_pts >= queue_pts_origin
+            && queue_pts_origin >= 0.0 && playback_started)
+            farplay::FrameGen::instance().noteLead(newest_queued_frame_pts - queue_pts_origin - qparams.pts);
         if (farplay::FrameGen::instance().internalActive())
             farplay::Stats::instance().noteQueueDiag(pl_queue_num_frames(placebo_queue),
                 (newest_queued_frame_pts - queue_pts_origin - qparams.pts) * 1000.0, kept_frame_enqueued, farplay_clamped);

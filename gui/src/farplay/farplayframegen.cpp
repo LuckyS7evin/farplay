@@ -193,6 +193,7 @@ void FrameGen::noteSourceArrival(int64_t now_us, double pts_s, bool lost)
         num_arrivals_ = 0;
         arrival_head_ = 0;
         base_valid_.store(false, std::memory_order_relaxed);
+        lead_corr_.store(0.0, std::memory_order_relaxed);
     }
     last_offset_ = offset;
     offsets_[arrival_head_] = offset;
@@ -257,7 +258,7 @@ bool FrameGen::displayPts(int64_t now_us, double queue_origin_s, double vsync_s,
     const double now = now_us / 1e6;
     const double dt = std::clamp(now - base_t_.load(std::memory_order_relaxed), 0.0, 0.5);
     const double base = base_offset_.load(std::memory_order_relaxed) + base_slope_.load(std::memory_order_relaxed) * dt;
-    double pts = now - base - queue_origin_s + vsync_s - delay_s;
+    double pts = now - base - queue_origin_s + vsync_s - delay_s - lead_corr_.load(std::memory_order_relaxed);
     // pl_queue exige des pts croissants. Si l'estimation passe derrière la cible
     // précédente (ex. horloge partie trop en avance au démarrage), on ne la bloque
     // pas : on la fait avancer à mi-vitesse jusqu'à rejoindre l'estimation, sinon
@@ -271,6 +272,19 @@ bool FrameGen::displayPts(int64_t now_us, double queue_origin_s, double vsync_s,
     last_now_ = now;
     *out_pts = pts;
     return true;
+}
+
+void FrameGen::noteLead(double lead_s)
+{
+    // Boucle de correction : on veut que la dernière image poussée ait en
+    // moyenne ~12 ms d'avance sur l'instant visé (valeur des sessions saines).
+    // Trop peu d'avance → on recule la cible (correction +), trop → on l'avance.
+    // Intégrateur lent (≈ 0,4 s à 120 Hz) : la dent de scie d'une image à
+    // l'autre est filtrée, une erreur de modèle (dérive, mauvais départ) disparaît.
+    constexpr double kWanted = 0.012, kGain = 0.02, kMax = 0.2;
+    double c = lead_corr_.load(std::memory_order_relaxed);
+    c = std::clamp(c + kGain * (kWanted - lead_s), -kMax, kMax);
+    lead_corr_.store(c, std::memory_order_relaxed);
 }
 
 void FrameGen::toggleSuspended()
