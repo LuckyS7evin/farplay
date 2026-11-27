@@ -23,11 +23,12 @@ pl_frame textureFrame(pl_tex tex, const pl_color_space &color)
     pl_frame f = {};
     f.num_planes = 1;
     f.planes[0].texture = tex;
-    f.planes[0].components = 4;
+    // Trois composantes seulement : l'alpha est ignoré (FSR écrit un alpha nul,
+    // que libplacebo composait sur fond noir → images générées noires).
+    f.planes[0].components = 3;
     f.planes[0].component_mapping[0] = 0;
     f.planes[0].component_mapping[1] = 1;
     f.planes[0].component_mapping[2] = 2;
-    f.planes[0].component_mapping[3] = 3;
     f.repr = pl_color_repr_rgb;
     f.color = color;
     f.crop.x1 = static_cast<float>(tex->params.w);
