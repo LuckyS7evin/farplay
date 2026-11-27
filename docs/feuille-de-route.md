@@ -35,6 +35,9 @@
 | Post-traitement (F7) : netteté, vibrance/saturation, contraste | cahier des charges, PushFPS | ⏳ |
 | Éditeur de masque HUD | cahier des charges | ⏳ |
 | Agrandisseur NIS (NVIDIA Image Scaling, MIT) au choix à côté de FSR 1 | PushFPS | ⏳ |
+| Fenêtre sans barre de titre Windows : fermer / réduire / agrandir intégrés à l'interface, déplacement et redimensionnement conservés | Farplay | ⏳ |
+| Anticrénelage optionnel avant agrandissement (SMAA, licence MIT) | PushFPS | ⏳ |
+| Stabilisation des bords dans le flux fourni à FSR (type « Edge Aegis » : vecteurs du premier plan dilatés aux contours) — seulement si « Flux Farplay » apporte quelque chose à FSR | PushFPS (GPL-3.0) | 💤 |
 | Petit réseau de super-résolution entraîné sur le flux PS5 (runtime Vulkan, ex. DLSSNR-AMD à évaluer) | cahier des charges | ⏳ |
 | Outil de mesure de latence (appui simulé → écran) | smoovplay | ⏳ |
 | Compteurs FEC / images clés dans l'overlay et le CSV | Nixani | ⏳ |
