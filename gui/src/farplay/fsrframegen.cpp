@@ -64,6 +64,12 @@ struct FsrFrameGen::Vk {
     PFN_vkQueueSubmit QueueSubmit = nullptr;
     PFN_vkWaitSemaphores WaitSemaphores = nullptr;
     PFN_vkDeviceWaitIdle DeviceWaitIdle = nullptr;
+    // Mesure du coût GPU de FSR (requêtes d'horodatage dans notre command buffer)
+    PFN_vkCreateQueryPool CreateQueryPool = nullptr;
+    PFN_vkDestroyQueryPool DestroyQueryPool = nullptr;
+    PFN_vkCmdResetQueryPool CmdResetQueryPool = nullptr;
+    PFN_vkCmdWriteTimestamp CmdWriteTimestamp = nullptr;
+    PFN_vkGetQueryPoolResults GetQueryPoolResults = nullptr;
 };
 
 FsrFrameGen::~FsrFrameGen()
@@ -157,7 +163,28 @@ void FsrFrameGen::init(pl_vulkan vk, pl_log log)
     FP_LOAD(QueueSubmit)
     FP_LOAD(WaitSemaphores)
     FP_LOAD(DeviceWaitIdle)
+    FP_LOAD(CreateQueryPool)
+    FP_LOAD(DestroyQueryPool)
+    FP_LOAD(CmdResetQueryPool)
+    FP_LOAD(CmdWriteTimestamp)
+    FP_LOAD(GetQueryPoolResults)
 #undef FP_LOAD
+
+    // Horodatage GPU : période du compteur (ns par tick). Facultatif : sans lui,
+    // le coût de FSR n'est simplement pas affiché.
+    if (auto props = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties>(gipa(vk->instance, "vkGetPhysicalDeviceProperties"))) {
+        VkPhysicalDeviceProperties pp = {};
+        props(vk->phys_device, &pp);
+        ts_period_ns_ = pp.limits.timestampPeriod;
+    }
+    if (ts_period_ns_ > 0.0f) {
+        VkQueryPoolCreateInfo qi = {};
+        qi.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+        qi.queryType = VK_QUERY_TYPE_TIMESTAMP;
+        qi.queryCount = 2 * kCmd;
+        if (vkf_->CreateQueryPool(vk->device, &qi, nullptr, &qpool_) != VK_SUCCESS)
+            qpool_ = VK_NULL_HANDLE;
+    }
 
     qf_ = vk->queue_graphics.index;
     qidx_ = 0;
@@ -219,6 +246,10 @@ void FsrFrameGen::destroy()
         vkf_->DeviceWaitIdle(vk_->device);
         vkf_->DestroyCommandPool(vk_->device, pool_, nullptr);
     }
+    if (qpool_ && vkf_ && vk_)
+        vkf_->DestroyQueryPool(vk_->device, qpool_, nullptr);
+    qpool_ = VK_NULL_HANDLE;
+    gpu_ms_ = 0.0;
     pool_ = VK_NULL_HANDLE;
     for (auto &c : cmd_)
         c = VK_NULL_HANDLE;
@@ -380,6 +411,13 @@ pl_tex FsrFrameGen::generate(pl_tex cur, bool reset, pl_tex mv, float mv_sx, flo
             fail(QStringLiteral("GPU bloqué (attente du command buffer)"));
             return nullptr;
         }
+        // Ce command buffer est terminé : son horodatage est lisible sans attente.
+        if (qpool_) {
+            uint64_t q[2] = {};
+            if (vkf_->GetQueryPoolResults(vk_->device, qpool_, static_cast<uint32_t>(2 * ci), 2, sizeof(q), q,
+                                          sizeof(uint64_t), VK_QUERY_RESULT_64_BIT) == VK_SUCCESS && q[1] >= q[0])
+                gpu_ms_ = (q[1] - q[0]) * static_cast<double>(ts_period_ns_) / 1e6;
+        }
     }
     VkCommandBuffer cb = cmd_[ci];
 
@@ -441,6 +479,10 @@ pl_tex FsrFrameGen::generate(pl_tex cur, bool reset, pl_tex mv, float mv_sx, flo
     bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     vkf_->BeginCommandBuffer(cb, &bi);
+    if (qpool_) {
+        vkf_->CmdResetQueryPool(cb, qpool_, static_cast<uint32_t>(2 * ci), 2);
+        vkf_->CmdWriteTimestamp(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, qpool_, static_cast<uint32_t>(2 * ci));
+    }
 
     const uint64_t fid = ++frame_id_;
     ffxContext c = ctx_;
@@ -501,6 +543,8 @@ pl_tex FsrFrameGen::generate(pl_tex cur, bool reset, pl_tex mv, float mv_sx, flo
         rc = reinterpret_cast<PfnFfxDispatch>(fns_[4])(&c, &d.header);
         ok &= rc == FFX_API_RETURN_OK;
     }
+    if (qpool_)
+        vkf_->CmdWriteTimestamp(cb, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, qpool_, static_cast<uint32_t>(2 * ci + 1));
     vkf_->EndCommandBuffer(cb);
 
     // 3) Soumission (même file que libplacebo, verrouillée), puis restitution.

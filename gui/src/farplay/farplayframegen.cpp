@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 
 namespace farplay {
 
@@ -129,40 +130,108 @@ QString FrameGen::fsrStatus() const
     return fsr_status_;
 }
 
-// Luminosité moyenne (0..1, valeurs encodées) d'une texture, par réduction
-// sur une petite texture lisible depuis le CPU (lecture synchrone, ~1/s).
-double FrameGen::probeLuma(pl_tex src)
+// Changements de plan ------------------------------------------------------
+
+void FrameGen::issueCutProbe(uint64_t sig)
 {
     pl_gpu gpu = engine_.gpu();
+    pl_tex src = engine_.coarseLuma(sig);
     if (!gpu || !src)
-        return -1.0;
-    struct pl_tex_params p = {};
-    p.w = 32;
-    p.h = 18;
-    p.format = pl_find_named_fmt(gpu, "rgba8");
-    p.sampleable = true;
-    p.renderable = true;
-    p.host_readable = true;
-    if (!p.format || !pl_tex_recreate(gpu, &fsr_probe_, &p) || !engine_.copyInto(src, fsr_probe_))
-        return -1.0;
-    uint8_t buf[32 * 18 * 4];
-    struct pl_tex_transfer_params tp = {};
-    tp.tex = fsr_probe_;
-    tp.ptr = buf;
-    if (!pl_tex_download(gpu, &tp))
-        return -1.0;
-    double sum = 0.0;
-    for (int i = 0; i < 32 * 18; i++)
-        sum += 0.2126 * buf[i * 4] + 0.7152 * buf[i * 4 + 1] + 0.0722 * buf[i * 4 + 2];
-    return sum / (32 * 18 * 255.0);
+        return;
+    CutProbe &p = probes_[next_probe_];
+    next_probe_ = (next_probe_ + 1) % kProbes;
+    // Relecture précédente pas encore arrivée : on ne recycle pas son tampon.
+    if (p.pending && p.buf && pl_buf_poll(gpu, p.buf, 0))
+        return;
+    struct pl_tex_params tp = {};
+    tp.w = 32;
+    tp.h = 18;
+    tp.format = pl_find_named_fmt(gpu, "rgba8");
+    tp.sampleable = true;
+    tp.renderable = true;
+    tp.host_readable = true;
+    if (!tp.format || !pl_tex_recreate(gpu, &p.tex, &tp))
+        return;
+    if (!p.buf) {
+        struct pl_buf_params bp = {};
+        bp.size = 32 * 18 * 4;
+        bp.host_mapped = true;
+        p.buf = pl_buf_create(gpu, &bp);
+        if (!p.buf)
+            return;
+    }
+    p.sig = sig;
+    p.ready = false;
+    p.pending = false;
+    if (!engine_.copyInto(src, p.tex))
+        return;
+    struct pl_tex_transfer_params xp = {};
+    xp.tex = p.tex;
+    xp.buf = p.buf;
+    p.pending = pl_tex_download(gpu, &xp);
+}
+
+const FrameGen::CutProbe *FrameGen::cutProbe(uint64_t sig)
+{
+    pl_gpu gpu = engine_.gpu();
+    for (CutProbe &p : probes_) {
+        if (p.sig != sig || !p.buf)
+            continue;
+        if (p.pending && gpu && !pl_buf_poll(gpu, p.buf, 0)) {
+            const uint8_t *d = p.buf->data;
+            for (int i = 0; i < 32 * 18; i++)
+                p.lum[i] = d[i * 4];
+            p.pending = false;
+            p.ready = true;
+        }
+        return p.ready ? &p : nullptr;
+    }
+    return nullptr;
+}
+
+bool FrameGen::sceneCut(uint64_t sig_a, uint64_t sig_b)
+{
+    if (sig_a != cut_a_ || sig_b != cut_b_) {
+        cut_a_ = sig_a;
+        cut_b_ = sig_b;
+        cut_state_ = -1;
+    }
+    if (cut_state_ < 0) {
+        const CutProbe *a = cutProbe(sig_a);
+        const CutProbe *b = cutProbe(sig_b);
+        if (!a || !b)
+            return false; // pas encore relu : on interpole (cas normal)
+        // Zones de ~120×120 px (en 4K) dont la luminance moyenne change de plus de
+        // 12 % : un panoramique ne déplace qu'une fraction de zone par image, une
+        // coupe ou un flash change presque tout.
+        int changed = 0;
+        for (int i = 0; i < 32 * 18; i++)
+            changed += std::abs(int(a->lum[i]) - int(b->lum[i])) > 31;
+        cut_state_ = changed * 10 >= 32 * 18 * 6 ? 1 : 0;
+        if (cut_state_ == 1)
+            Stats::instance().noteSceneCut();
+    }
+    return cut_state_ == 1;
+}
+
+void FrameGen::destroyCutProbes()
+{
+    pl_gpu gpu = engine_.gpu();
+    for (CutProbe &p : probes_) {
+        if (gpu) {
+            pl_tex_destroy(gpu, &p.tex);
+            pl_buf_destroy(gpu, &p.buf);
+        }
+        p = CutProbe{};
+    }
+    cut_a_ = cut_b_ = 0;
+    cut_state_ = -1;
 }
 
 // Thread de rendu → interface (signal mis en file vers le thread GUI).
 void FrameGen::publishFsrStatus()
 {
-    QString s = fsr_.status();
-    if (!fsr_probe_text_.isEmpty() && fsr_.usable())
-        s += QStringLiteral(" · ") + fsr_probe_text_;
+    const QString s = fsr_.status();
     {
         QMutexLocker l(&fsr_status_mutex_);
         if (s == fsr_status_)
@@ -324,8 +393,7 @@ void FrameGen::destroyGpu()
     fsr_out_valid_ = false;
     if (fsr_in_ && engine_.gpu())
         pl_tex_destroy(engine_.gpu(), &fsr_in_);
-    if (fsr_probe_ && engine_.gpu())
-        pl_tex_destroy(engine_.gpu(), &fsr_probe_);
+    destroyCutProbes();
     fsr_.destroy();
     engine_.destroy();
     gpu_ok_ = false;
@@ -415,8 +483,14 @@ bool FrameGen::render(pl_renderer renderer, const struct pl_frame_mix *mix,
             pl_frame dst = textureFrame(tex[k], target->color);
             if (!pl_render_image(renderer, src[k], &dst, params) || !engine_.finishSlot(sig[k]))
                 return false;
+            if (interp)
+                issueCutProbe(sig[k]);
         }
     }
+    // Changement de plan (coupe, téléportation, flash) : rien à interpoler entre
+    // deux images sans rapport, on montre A puis B.
+    if (interp && t > 1e-3f && sceneCut(sig[0], sig[1]))
+        t = 0.0f;
 
     // Moteur AMD FSR : une image du milieu par paire (x2), calculée dès que la
     // paire (A, B) est connue ; repli sur le moteur Farplay en cas d'échec.
@@ -430,12 +504,12 @@ bool FrameGen::render(pl_renderer renderer, const struct pl_frame_mix *mix,
             pl_tex mv = nullptr;
             float sx = 1.0f, sy = 1.0f;
             if (fsrMotion() == 1) {
-                // Flux Farplay : A→B en coordonnées normalisées ; FSR attend, pour
-                // chaque pixel de B, le déplacement vers A en pixels (échelle négative).
+                // Flux Farplay B→A en coordonnées normalisées ; FSR attend, pour
+                // chaque pixel de B, le déplacement vers sa position dans A en pixels.
                 mv = engine_.flowFor(sig[0], sig[1]);
                 if (mv) {
-                    sx = -static_cast<float>(mv->params.w);
-                    sy = -static_cast<float>(mv->params.h);
+                    sx = static_cast<float>(mv->params.w);
+                    sy = static_cast<float>(mv->params.h);
                 }
             }
             const bool pq = target->color.transfer == PL_COLOR_TRC_PQ;
@@ -459,14 +533,6 @@ bool FrameGen::render(pl_renderer renderer, const struct pl_frame_mix *mix,
             }
             fsr_out_ = fsr_src ? fsr_.generate(fsr_src, reset, mv, sx, sy, pq, peak, dt_ms, fsrDebug() == 2) : nullptr;
             fsr_out_valid_ = fsr_out_ && !reset;
-            // Diagnostic : luminosité de l'image générée face à la vraie image B.
-            if (fsr_out_ && ++fsr_probe_count_ >= 30) {
-                fsr_probe_count_ = 0;
-                const double lg = probeLuma(fsr_out_), lr = probeLuma(tex[1]);
-                if (lg >= 0.0 && lr >= 0.0)
-                    fsr_probe_text_ = QStringLiteral("lum. générée %1 / réelle %2")
-                        .arg(lg, 0, 'f', 2).arg(lr, 0, 'f', 2);
-            }
             fsr_a_ = sig[0];
             fsr_b_ = sig[1];
             publishFsrStatus();
@@ -508,7 +574,10 @@ bool FrameGen::render(pl_renderer renderer, const struct pl_frame_mix *mix,
 
     const FgEngine::Timings tm = engine_.timings();
     stats.setFrameGenState(interp ? Stats::FgState::Active : Stats::FgState::Pacing);
-    stats.onFrameGenOutput(t > 1e-3f, new_image, tm.pyramid_ms, tm.flow_ms, tm.synth_ms);
+    // Moteur FSR : « synthèse » = coût GPU mesuré de FSR, flux seulement s'il lui est fourni.
+    stats.onFrameGenOutput(t > 1e-3f, new_image, tm.pyramid_ms,
+                           use_fsr ? (fsrMotion() == 1 ? tm.flow_ms : 0.0) : tm.flow_ms,
+                           use_fsr ? fsr_.gpuMs() : tm.synth_ms);
     return true;
 }
 

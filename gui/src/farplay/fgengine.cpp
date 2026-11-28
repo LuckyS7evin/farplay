@@ -207,17 +207,31 @@ void FgEngine::destroy()
                 pl_tex_destroy(gpu_, &t);
             s = Slot{};
         }
-        for (pl_tex &t : flow_)
-            pl_tex_destroy(gpu_, &t);
-        pl_tex_destroy(gpu_, &flow_smooth_);
+        destroyFlow(fwd_);
+        destroyFlow(bwd_);
         pl_tex_destroy(gpu_, &out_);
     }
     if (dp_)
         pl_dispatch_destroy(&dp_);
     gpu_ = nullptr;
-    flow_valid_ = false;
-    has_tprev_ = false;
+    fwd_ = FlowSet{};
+    bwd_ = FlowSet{};
     num_pass_times_ = 0;
+}
+
+void FgEngine::destroyFlow(FlowSet &fs)
+{
+    for (pl_tex &t : fs.lvl)
+        pl_tex_destroy(gpu_, &t);
+    pl_tex_destroy(gpu_, &fs.smooth);
+    fs = FlowSet{};
+}
+
+void FgEngine::invalidateFlows(uint64_t sig)
+{
+    for (FlowSet *fs : { &fwd_, &bwd_ })
+        if (fs->valid && (sig == fs->a || sig == fs->b))
+            fs->valid = false;
 }
 
 void FgEngine::dispatchInfo(void *priv, const struct pl_dispatch_info *info)
@@ -303,8 +317,8 @@ pl_tex FgEngine::acquireSlot(uint64_t sig, int w, int h, bool *needs_render)
         for (Slot &c : slots_)
             if (!c.rgb || c.lru < s->lru)
                 s = &c;
-        if (s->rgb && flow_valid_ && (s->sig == flow_a_ || s->sig == flow_b_))
-            flow_valid_ = false;
+        if (s->rgb)
+            invalidateFlows(s->sig);
     }
     if (!ensureTex(&s->rgb, fmt_rgba_, w, h))
         return nullptr;
@@ -319,6 +333,12 @@ pl_tex FgEngine::slotTexture(uint64_t sig) const
 {
     const Slot *s = find(sig);
     return s && s->valid ? s->rgb : nullptr;
+}
+
+pl_tex FgEngine::coarseLuma(uint64_t sig) const
+{
+    const Slot *s = find(sig);
+    return s && s->valid ? s->lum[kLevels - 1] : nullptr;
 }
 
 bool FgEngine::finishSlot(uint64_t sig)
@@ -349,24 +369,24 @@ bool FgEngine::finishSlot(uint64_t sig)
             return false;
     }
     s->valid = true;
-    if (flow_valid_ && (s->sig == flow_a_ || s->sig == flow_b_))
-        flow_valid_ = false;
+    invalidateFlows(s->sig);
     return true;
 }
 
-bool FgEngine::computeFlow(Slot &a, Slot &b)
+bool FgEngine::computeFlow(Slot &a, Slot &b, FlowSet &fs, int final_level)
 {
     {
-        const pl_tex fl = a.lum[kFlowLevel];
-        if (!flow_smooth_ || flow_smooth_->params.w != fl->params.w || flow_smooth_->params.h != fl->params.h)
-            has_tprev_ = false;
+        const pl_tex fl = a.lum[final_level];
+        if (!fs.smooth || fs.smooth->params.w != fl->params.w || fs.smooth->params.h != fl->params.h)
+            fs.has_tprev = false;
     }
-    for (int k = kLevels - 1; k >= kFlowLevel; k--) {
+    for (int k = kLevels - 1; k >= final_level; k--) {
         const int lw = a.lum[k]->params.w, lh = a.lum[k]->params.h;
-        if (!ensureTex(&flow_[k], fmt_flow_, lw, lh))
+        if (!ensureTex(&fs.lvl[k], fmt_flow_, lw, lh))
             return false;
         const bool coarsest = k == kLevels - 1;
-        const int radius = coarsest ? 4 : 2;
+        // L0 (grille fine pour FSR) : la prédiction du niveau 1 est déjà bonne, rayon 1.
+        const int radius = coarsest ? 4 : (k == 0 ? 1 : 2);
         char body[4096];
         const char *pred_coarse =
             "if (use_tprev > 0.5) { for (int k = 0; k < 5; k++) {"
@@ -383,28 +403,28 @@ bool FgEngine::computeFlow(Slot &a, Slot &b)
         const float px[2] = { 1.0f / lw, 1.0f / lh };
         const float lambda = 0.004f;
         // Flux temporel : résultat de la paire précédente (ou un flux nul au départ).
-        const float use_tprev = has_tprev_ ? 1.0f : 0.0f;
+        const float use_tprev = fs.has_tprev ? 1.0f : 0.0f;
         pl_shader_desc descs[4] = { texDesc("la", a.lum[k]), texDesc("lb", b.lum[k]),
-                                    texDesc("tprev", has_tprev_ ? flow_smooth_ : a.lum[k]) };
+                                    texDesc("tprev", fs.has_tprev ? fs.smooth : a.lum[k]) };
         int nd = 3;
         if (!coarsest)
-            descs[nd++] = texDesc("prev", flow_[k + 1]);
+            descs[nd++] = texDesc("prev", fs.lvl[k + 1]);
         pl_shader_var vars[3] = { vec2Var("px", px), floatVar("lambda", &lambda), floatVar("use_tprev", &use_tprev) };
         char name[16];
         std::snprintf(name, sizeof(name), "fg-flow-L%d", k);
-        if (!pass(flow_[k], name, kFlowHeader, body, descs, nd, vars, 3))
+        if (!pass(fs.lvl[k], name, kFlowHeader, body, descs, nd, vars, 3))
             return false;
     }
-    const pl_tex f = flow_[kFlowLevel];
-    if (!ensureTex(&flow_smooth_, fmt_flow_, f->params.w, f->params.h))
+    const pl_tex f = fs.lvl[final_level];
+    if (!ensureTex(&fs.smooth, fmt_flow_, f->params.w, f->params.h))
         return false;
     const float px[2] = { 1.0f / f->params.w, 1.0f / f->params.h };
     pl_shader_desc d = texDesc("src", f);
     d.binding.sample_mode = PL_TEX_SAMPLE_NEAREST;
     pl_shader_var v = vec2Var("px", px);
-    if (!pass(flow_smooth_, "fg-flow-median", "", kMedianBody, &d, 1, &v, 1))
+    if (!pass(fs.smooth, "fg-flow-median", "", kMedianBody, &d, 1, &v, 1))
         return false;
-    has_tprev_ = true;
+    fs.has_tprev = true;
     return true;
 }
 
@@ -422,14 +442,15 @@ pl_tex FgEngine::flowFor(uint64_t sig_a, uint64_t sig_b)
     Slot *b = find(sig_b);
     if (!a || !b || !a->valid || !b->valid)
         return nullptr;
-    if (!flow_valid_ || flow_a_ != sig_a || flow_b_ != sig_b) {
-        if (!computeFlow(*a, *b))
+    if (!bwd_.valid || bwd_.a != sig_a || bwd_.b != sig_b) {
+        // Blocs de B cherchés dans A : vecteur B→A en chaque pixel de B.
+        if (!computeFlow(*b, *a, bwd_, 0))
             return nullptr;
-        flow_a_ = sig_a;
-        flow_b_ = sig_b;
-        flow_valid_ = true;
+        bwd_.a = sig_a;
+        bwd_.b = sig_b;
+        bwd_.valid = true;
     }
-    return flow_smooth_;
+    return bwd_.smooth;
 }
 
 pl_tex FgEngine::synthesize(uint64_t sig_a, uint64_t sig_b, float t, bool hud_protect)
@@ -440,19 +461,19 @@ pl_tex FgEngine::synthesize(uint64_t sig_a, uint64_t sig_b, float t, bool hud_pr
         return nullptr;
     if (a->rgb->params.w != b->rgb->params.w || a->rgb->params.h != b->rgb->params.h)
         return nullptr;
-    if (!flow_valid_ || flow_a_ != sig_a || flow_b_ != sig_b) {
-        if (!computeFlow(*a, *b))
+    if (!fwd_.valid || fwd_.a != sig_a || fwd_.b != sig_b) {
+        if (!computeFlow(*a, *b, fwd_, kFlowLevel))
             return nullptr;
-        flow_a_ = sig_a;
-        flow_b_ = sig_b;
-        flow_valid_ = true;
+        fwd_.a = sig_a;
+        fwd_.b = sig_b;
+        fwd_.valid = true;
     }
     if (!ensureTex(&out_, fmt_rgba_, a->rgb->params.w, a->rgb->params.h))
         return nullptr;
     const float tt = std::clamp(t, 0.0f, 1.0f);
     const float hud = hud_protect ? 1.0f : 0.0f;
-    pl_shader_desc descs[3] = { texDesc("ta", a->rgb), texDesc("tb", b->rgb), texDesc("flow", flow_smooth_) };
-    const float flow_px[2] = { 1.0f / flow_smooth_->params.w, 1.0f / flow_smooth_->params.h };
+    pl_shader_desc descs[3] = { texDesc("ta", a->rgb), texDesc("tb", b->rgb), texDesc("flow", fwd_.smooth) };
+    const float flow_px[2] = { 1.0f / fwd_.smooth->params.w, 1.0f / fwd_.smooth->params.h };
     pl_shader_var vars[3] = { floatVar("t", &tt), floatVar("hud", &hud), vec2Var("flow_px", flow_px) };
     if (!pass(out_, "fg-synth", kSynthHeader, kSynthBody, descs, 3, vars, 3))
         return nullptr;

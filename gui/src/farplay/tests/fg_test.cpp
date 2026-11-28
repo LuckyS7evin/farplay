@@ -218,6 +218,37 @@ int main(int argc, char **argv)
         }
     }
 
+    // Vecteurs fournis à FSR : B→A sur la grille fine (L0), attendus ≈ (−dx, −dy).
+    int rc_mv = 0;
+    {
+        pl_tex mv = eng.flowFor(1, 2);
+        const int fw = mv ? mv->params.w : 0, fh = mv ? mv->params.h : 0;
+        std::vector<float> fl(size_t(fw) * fh * 4);
+        pl_tex_transfer_params tp = {};
+        tp.tex = mv;
+        tp.ptr = fl.data();
+        if (!mv || mv->params.format->texel_size != 16 || !pl_tex_download(vk->gpu, &tp)) {
+            std::printf("ÉCHEC : vecteurs FSR indisponibles\n");
+            rc_mv = 1;
+        } else {
+            std::vector<float> xs, ys;
+            for (int y = fh / 4; y < 3 * fh / 4; y++)
+                for (int x = fw / 4; x < 3 * fw / 4; x++) {
+                    xs.push_back(fl[(size_t(y) * fw + x) * 4] * W);
+                    ys.push_back(fl[(size_t(y) * fw + x) * 4 + 1] * H);
+                }
+            std::sort(xs.begin(), xs.end());
+            std::sort(ys.begin(), ys.end());
+            const float mx = xs[xs.size() / 2], my = ys[ys.size() / 2];
+            std::printf("vecteurs FSR B→A (%dx%d) : médiane (%.2f, %.2f) px, quartiles x [%.2f %.2f]\n", fw, fh,
+                        mx, my, xs[xs.size() / 4], xs[3 * xs.size() / 4]);
+            if (std::fabs(mx + dx) > 1.5f || std::fabs(my + dy) > 1.5f) {
+                std::printf("ÉCHEC : vecteurs FSR éloignés de (%.1f, %.1f)\n", -dx, -dy);
+                rc_mv = 1;
+            }
+        }
+    }
+
     std::vector<float> blend(fa.size());
     for (size_t i = 0; i < fa.size(); i++)
         blend[i] = 0.5f * (fa[i] + fb[i]);
@@ -232,7 +263,7 @@ int main(int argc, char **argv)
     // fondu sur le décor et laisser le HUD intact.
     const double gain = psnr(out, fmid) - psnr(blend, fmid);
     const double hud = psnr(out, fmid, true);
-    int rc = 0;
+    int rc = rc_mv;
     if (gain < 5.0) { std::printf("ÉCHEC : gain %.2f dB < 5 dB\n", gain); rc = 1; }
     if (hud < 40.0) { std::printf("ÉCHEC : HUD %.2f dB < 40 dB\n", hud); rc = 1; }
 

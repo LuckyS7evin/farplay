@@ -10,14 +10,15 @@
 | Lissage du pacing calé sur les arrivées | PushFPS | ✅ |
 | Son retardé du même délai que l'image | PushFPS, smoovplay | ✅ |
 | 1 % low dans l'overlay | PushFPS | ✅ |
-| Déblocage de la frame gen (file, horloge par régression, rattrapage progressif) | Farplay | 🧪 |
+| Déblocage de la frame gen (file, horloge par régression, correcteur d'avance borné) | Farplay | ✅ (≈60 fps distincts, latence revenue) |
 | Frame gen AMD FSR 4.0.2 IA (Vulkan, SDK 2.4), choix du moteur, repli auto | AMD / PushFPS | ✅ (≈58 fps distincts, image jugée satisfaisante) |
-| Coût GPU de FSR dans l'overlay | Farplay | ⏳ |
+| Coût GPU de FSR dans l'overlay (horodatage Vulkan) | Farplay | 🧪 |
 | Pas d'interpolation après une perte de paquets | smoovplay | 🧪 |
 | Validation : 60 fps stables, latence ajoutée ≤ 33 ms, HUD lisible | cahier des charges | ⏳ |
-| Pas d'interpolation sur un changement de plan | smoovplay, ConsoleEnhancer | ⏳ |
+| Pas d'interpolation sur un changement de plan (luminance 32×18 relue sans attente) | smoovplay, ConsoleEnhancer | 🧪 |
 | Candidat de mouvement global (panoramiques) | ConsoleEnhancer | ⏳ |
-| Échelle du flux optique réglable (1/4 ou 1/2 de la sortie) | Lossless Scaling | ⏳ |
+| « Flux Farplay » pour FSR : vecteurs B→A sur grille fine (1/4 de la sortie) au lieu du flux A→B inversé (artefacts sur les cheveux) | Farplay, Lossless Scaling | 🧪 |
+| Retrait de la sonde de luminosité FSR (lecture GPU synchrone) | Farplay | ✅ |
 | Mode faible latence par extrapolation (option) | ConsoleEnhancer | ⏳ |
 | Frame gen « éco » (simple fondu) | Asobi | 💤 |
 | Piste B : RIFE via ncnn | cahier des charges | 💤 |

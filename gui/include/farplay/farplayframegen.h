@@ -127,10 +127,26 @@ private:
     std::atomic<int> fsr_motion_{0};
     std::atomic<int> fsr_debug_{0};
     // Sonde de luminosité (image générée vs réelle), ~1 fois par seconde
-    pl_tex fsr_probe_ = nullptr;
-    int fsr_probe_count_ = 0;
-    QString fsr_probe_text_;
-    double probeLuma(pl_tex src);
+    // Détection des changements de plan : la luminance réduite (32×18) de chaque
+    // image reçue est relue de façon asynchrone (aucune attente du GPU) ; une paire
+    // dont la majorité des zones change fortement n'est pas interpolée.
+    struct CutProbe {
+        uint64_t sig = 0;
+        pl_tex tex = nullptr;
+        pl_buf buf = nullptr;
+        bool pending = false;
+        bool ready = false;
+        uint8_t lum[32 * 18] = {};
+    };
+    static constexpr int kProbes = 4;
+    CutProbe probes_[kProbes];
+    int next_probe_ = 0;
+    uint64_t cut_a_ = 0, cut_b_ = 0;
+    int cut_state_ = -1; // -1 inconnu, 0 non, 1 changement de plan
+    void issueCutProbe(uint64_t sig);
+    const CutProbe *cutProbe(uint64_t sig);
+    bool sceneCut(uint64_t sig_a, uint64_t sig_b);
+    void destroyCutProbes();
     // FSR (thread de rendu)
     FsrFrameGen fsr_;
     uint64_t fsr_a_ = 0, fsr_b_ = 0;  // paire dont fsr_out_ est l'image du milieu

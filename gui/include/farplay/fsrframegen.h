@@ -38,6 +38,8 @@ public:
     QString status() const;
     // Version du fournisseur effectivement utilisée (ex. « 4.0.2 »), vide sinon.
     QString providerVersion() const { return provider_; }
+    // Coût GPU de la dernière génération mesurée (ms, horodatage Vulkan), 0 si inconnu.
+    double gpuMs() const { return gpu_ms_; }
 
     // Génère l'image intermédiaire entre l'image courante précédente (historique
     // interne de FSR) et `cur`. `reset` : discontinuité (l'image précédente n'était
@@ -90,6 +92,9 @@ private:
     VkQueue queue_ = VK_NULL_HANDLE;
     uint32_t qf_ = 0, qidx_ = 0;
     uint64_t cmd_done_[kCmd] = {};
+    VkQueryPool qpool_ = VK_NULL_HANDLE; // 2 horodatages par command buffer
+    float ts_period_ns_ = 0.0f;
+    double gpu_ms_ = 0.0;
     int cmd_next_ = 0;
 };
 

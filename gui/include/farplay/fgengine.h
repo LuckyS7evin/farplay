@@ -43,12 +43,18 @@ public:
     // À appeler après avoir rendu dans le slot : construit sa pyramide.
     bool finishSlot(uint64_t sig);
     pl_tex slotTexture(uint64_t sig) const;
+    // Luminance la plus réduite de la pyramide du slot (≈ 1/64 de la sortie), nul si absent.
+    pl_tex coarseLuma(uint64_t sig) const;
 
     // Synthétise l'image à la phase t entre les slots a et b.
     // Le flux de la paire est calculé au premier appel puis réutilisé.
     // Retourne la texture de sortie (propriété du moteur) ou nullptr.
     pl_tex synthesize(uint64_t sig_a, uint64_t sig_b, float t, bool hud_protect);
-    // Flux de la paire (A→B, coordonnées normalisées, RGBA32F), calculé si besoin.
+    // Vecteurs de mouvement pour FSR : pour chaque pixel de B, déplacement vers sa
+    // position dans A (B→A, coordonnées normalisées, RGBA32F), sur la grille fine
+    // L0 (1/4 de la sortie). Calculé dans ce sens et à cette finesse plutôt que
+    // d'inverser le flux A→B de la synthèse : les détails fins (cheveux, grillages)
+    // gardent leur propre vecteur.
     pl_tex flowFor(uint64_t sig_a, uint64_t sig_b);
     // Copie (avec conversion de format) d'une texture dans une autre, même taille.
     bool copyInto(pl_tex src, pl_tex dst);
@@ -58,7 +64,7 @@ public:
     pl_gpu gpu() const { return gpu_; }
     // Banc de test : textures lisibles/écrivables depuis le CPU.
     void setHostIo(bool on) { host_io_ = on; }
-    pl_tex debugFlow(int level) const { return level < 0 ? flow_smooth_ : flow_[level]; }
+    pl_tex debugFlow(int level) const { return level < 0 ? fwd_.smooth : fwd_.lvl[level]; }
 
 private:
     struct Slot {
@@ -72,7 +78,18 @@ private:
     Slot *find(uint64_t sig);
     const Slot *find(uint64_t sig) const;
     bool ensureTex(pl_tex *tex, pl_fmt fmt, int w, int h);
-    bool computeFlow(Slot &a, Slot &b);
+    // Jeu de textures d'un flux (une direction, un niveau final).
+    struct FlowSet {
+        pl_tex lvl[kLevels] = {};
+        pl_tex smooth = nullptr;
+        uint64_t a = 0, b = 0;
+        bool valid = false;
+        bool has_tprev = false; // `smooth` contient le flux de la paire précédente
+    };
+    // Flux de `a` vers `b` (bloc de `a` cherché dans `b`) jusqu'au niveau `final_level`.
+    bool computeFlow(Slot &a, Slot &b, FlowSet &fs, int final_level);
+    void invalidateFlows(uint64_t sig);
+    void destroyFlow(FlowSet &fs);
 
     // Passe « fragment » : écrit `color` dans `target`.
     bool pass(pl_tex target, const char *desc, const char *header, const char *body,
@@ -91,11 +108,8 @@ private:
     Slot slots_[kSlots];
     uint64_t lru_clock_ = 0;
 
-    pl_tex flow_[kLevels] = {};
-    pl_tex flow_smooth_ = nullptr;
-    uint64_t flow_a_ = 0, flow_b_ = 0;
-    bool flow_valid_ = false;
-    bool has_tprev_ = false; // flow_smooth_ contient le flux de la paire précédente
+    FlowSet fwd_; // A→B, niveau kFlowLevel : synthèse du moteur Farplay
+    FlowSet bwd_; // B→A, niveau 0 : vecteurs fournis à FSR
 
     pl_tex out_ = nullptr;
     bool host_io_ = false;
