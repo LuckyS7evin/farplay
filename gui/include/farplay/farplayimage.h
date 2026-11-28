@@ -21,9 +21,10 @@ namespace farplay {
 class Image : public QObject
 {
     Q_OBJECT
-    // 0 = réglage chiaki-ng, 1 = FSR 1 (défaut), 2 = FSRCNNX (réseau léger), 3 = libplacebo seul
+    // 1 = FSR 1 (défaut), 2 = NIS (NVIDIA Image Scaling). Les anciens choix
+    // (réglage chiaki-ng, FSRCNNX, libplacebo seul) sont retirés et migrés vers FSR 1.
     Q_PROPERTY(int upscaler READ upscaler WRITE setUpscaler NOTIFY changed)
-    // Netteté RCAS en % (0..100), 50 par défaut (avec la réduction d'artefacts)
+    // Netteté en % (0..100), 50 par défaut : RCAS pour FSR 1, affûtage intégré pour NIS
     Q_PROPERTY(int sharpness READ sharpness WRITE setSharpness NOTIFY changed)
     // Lissage des dégradés : 0 = coupé, 1 = faible (défaut), 2 = moyen
     Q_PROPERTY(int deband READ deband WRITE setDeband NOTIFY changed)
@@ -35,6 +36,10 @@ class Image : public QObject
     // Afficher un flux SDR en HDR sur un écran HDR, avec luminosité de référence
     Q_PROPERTY(bool sdrToHdr READ sdrToHdr WRITE setSdrToHdr NOTIFY changed)
     Q_PROPERTY(int sdrWhiteNits READ sdrWhiteNits WRITE setSdrWhiteNits NOTIFY changed)
+    // Post-traitement des couleurs (F7), en % : contraste et saturation -50..+50, vibrance 0..100
+    Q_PROPERTY(int contrast READ contrast WRITE setContrast NOTIFY changed)
+    Q_PROPERTY(int saturation READ saturation WRITE setSaturation NOTIFY changed)
+    Q_PROPERTY(int vibrance READ vibrance WRITE setVibrance NOTIFY changed)
 
 public:
     static Image &instance();
@@ -54,7 +59,14 @@ public:
     void setSdrToHdr(bool v);
     int sdrWhiteNits() const { return sdr_white_.load(std::memory_order_relaxed); }
     void setSdrWhiteNits(int v);
+    int contrast() const { return contrast_.load(std::memory_order_relaxed); }
+    void setContrast(int v);
+    int saturation() const { return saturation_.load(std::memory_order_relaxed); }
+    void setSaturation(int v);
+    int vibrance() const { return vibrance_.load(std::memory_order_relaxed); }
+    void setVibrance(int v);
     Q_INVOKABLE void resetRecommended();
+    Q_INVOKABLE void resetColor();
 
     // --- thread de rendu ---
     void initGpu(pl_gpu gpu);
@@ -65,10 +77,11 @@ public:
     const struct pl_hook *selectHook(bool source_pq, float upscale_factor,
                                      const struct pl_hook *chiaki_hook,
                                      const struct pl_hook *fsrcnnx8);
-    // Liste des hooks à appliquer, dans l'ordre : réduction d'artefacts puis
-    // upscaling. Renvoie le nombre de hooks écrits dans `out` (kMaxHooks au plus).
-    static constexpr int kMaxHooks = 3;
-    int buildHooks(const struct pl_hook *upscale_hook, const struct pl_hook **out);
+    // Liste des hooks à appliquer, dans l'ordre : chroma, réduction d'artefacts,
+    // upscaling, post-traitement couleur. Renvoie le nombre de hooks écrits dans
+    // `out` (kMaxHooks au plus). `source_pq` : pivot du contraste en PQ.
+    static constexpr int kMaxHooks = 4;
+    int buildHooks(const struct pl_hook *upscale_hook, const struct pl_hook **out, bool source_pq = false);
 
     // Ajuste les paramètres de rendu (lissage des dégradés).
     void applyRenderParams(struct pl_render_params *params);
@@ -98,6 +111,11 @@ private:
     std::atomic<bool> cfl_{true};
     std::atomic<bool> sdr_to_hdr_{true};
     std::atomic<int> sdr_white_{200};
+    std::atomic<int> contrast_{0};
+    std::atomic<int> saturation_{0};
+    std::atomic<int> vibrance_{0};
+    const struct pl_hook *nis_ = nullptr;
+    const struct pl_hook *post_color_ = nullptr;
 
     pl_gpu gpu_ = nullptr;
     const struct pl_hook *fsr_sdr_ = nullptr;

@@ -3,6 +3,8 @@
     <file>fonts/JetBrainsMono-Regular.ttf</file>
     <file>shaders/FSR.glsl</file>
     <file>shaders/Deartifact.glsl</file>
+    <file>shaders/NIS.glsl</file>
+    <file>shaders/PostColor.glsl</file>
     <file>shaders/ChromaFromLuma.glsl</file>
     <file alias="StatsOverlay.qml">../../src/qml/farplay/StatsOverlay.qml</file>
     <file alias="ui/qmldir">../../src/qml/farplay/ui/qmldir</file>

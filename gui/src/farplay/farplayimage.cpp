@@ -79,13 +79,22 @@ Image::Image(QObject *parent)
     : QObject(parent)
 {
     QSettings st = farplaySettings();
-    upscaler_.store(std::clamp(st.value(QStringLiteral("image/upscaler"), 1).toInt(), 0, 3));
+    // Choix d'agrandissement : 1 = FSR 1, 2 = NIS. Avant, 2 désignait FSRCNNX et
+    // 0/3 les modes chiaki-ng/libplacebo, retirés : tout ancien réglage → FSR 1.
+    if (!st.value(QStringLiteral("image/upscaler_v2"), false).toBool()) {
+        st.setValue(QStringLiteral("image/upscaler"), 1);
+        st.setValue(QStringLiteral("image/upscaler_v2"), true);
+    }
+    upscaler_.store(std::clamp(st.value(QStringLiteral("image/upscaler"), 1).toInt(), 1, 2));
     sharpness_.store(std::clamp(st.value(QStringLiteral("image/sharpness"), 50).toInt(), 0, 100));
     deband_.store(std::clamp(st.value(QStringLiteral("image/deband"), 1).toInt(), 0, 2));
     denoise_.store(std::clamp(st.value(QStringLiteral("image/denoise"), 2).toInt(), 0, 3));
     cfl_.store(st.value(QStringLiteral("image/chroma_from_luma"), true).toBool());
     sdr_to_hdr_.store(st.value(QStringLiteral("image/sdr_to_hdr"), true).toBool());
     sdr_white_.store(std::clamp(st.value(QStringLiteral("image/sdr_white_nits"), 200).toInt(), 80, 400));
+    contrast_.store(std::clamp(st.value(QStringLiteral("image/contrast"), 0).toInt(), -50, 50));
+    saturation_.store(std::clamp(st.value(QStringLiteral("image/saturation"), 0).toInt(), -50, 50));
+    vibrance_.store(std::clamp(st.value(QStringLiteral("image/vibrance"), 0).toInt(), 0, 100));
 }
 
 void Image::registerQml()
@@ -104,16 +113,30 @@ void Image::save()
     st.setValue(QStringLiteral("image/chroma_from_luma"), chromaFromLuma());
     st.setValue(QStringLiteral("image/sdr_to_hdr"), sdrToHdr());
     st.setValue(QStringLiteral("image/sdr_white_nits"), sdrWhiteNits());
+    st.setValue(QStringLiteral("image/contrast"), contrast());
+    st.setValue(QStringLiteral("image/saturation"), saturation());
+    st.setValue(QStringLiteral("image/vibrance"), vibrance());
     emit changed();
 }
 
-void Image::setUpscaler(int v) { v = std::clamp(v, 0, 3); if (v != upscaler()) { upscaler_.store(v); save(); } }
+void Image::setUpscaler(int v) { v = std::clamp(v, 1, 2); if (v != upscaler()) { upscaler_.store(v); save(); } }
 void Image::setSharpness(int v) { v = std::clamp(v, 0, 100); if (v != sharpness()) { sharpness_.store(v); save(); } }
 void Image::setDeband(int v) { v = std::clamp(v, 0, 2); if (v != deband()) { deband_.store(v); save(); } }
 void Image::setDenoise(int v) { v = std::clamp(v, 0, 3); if (v != denoise()) { denoise_.store(v); save(); } }
 void Image::setChromaFromLuma(bool v) { if (v != chromaFromLuma()) { cfl_.store(v); save(); } }
 void Image::setSdrToHdr(bool v) { if (v != sdrToHdr()) { sdr_to_hdr_.store(v); save(); } }
 void Image::setSdrWhiteNits(int v) { v = std::clamp(v, 80, 400); if (v != sdrWhiteNits()) { sdr_white_.store(v); save(); } }
+void Image::setContrast(int v) { v = std::clamp(v, -50, 50); if (v != contrast()) { contrast_.store(v); save(); } }
+void Image::setSaturation(int v) { v = std::clamp(v, -50, 50); if (v != saturation()) { saturation_.store(v); save(); } }
+void Image::setVibrance(int v) { v = std::clamp(v, 0, 100); if (v != vibrance()) { vibrance_.store(v); save(); } }
+
+void Image::resetColor()
+{
+    contrast_.store(0);
+    saturation_.store(0);
+    vibrance_.store(0);
+    save();
+}
 
 void Image::resetRecommended()
 {
@@ -124,6 +147,9 @@ void Image::resetRecommended()
     cfl_.store(true);
     sdr_to_hdr_.store(true);
     sdr_white_.store(200);
+    contrast_.store(0);
+    saturation_.store(0);
+    vibrance_.store(0);
     save();
 }
 
@@ -137,6 +163,12 @@ void Image::initGpu(pl_gpu gpu)
         qWarning("Farplay: échec du chargement du shader FSR 1 (repli libplacebo)");
     deartifact_ = loadShader(gpu, QStringLiteral(":/farplay/shaders/Deartifact.glsl"));
     cfl_hook_ = loadShader(gpu, QStringLiteral(":/farplay/shaders/ChromaFromLuma.glsl"));
+    nis_ = loadShader(gpu, QStringLiteral(":/farplay/shaders/NIS.glsl"));
+    if (!nis_)
+        qWarning("Farplay: échec du chargement du shader NIS (repli libplacebo)");
+    post_color_ = loadShader(gpu, QStringLiteral(":/farplay/shaders/PostColor.glsl"));
+    if (!post_color_)
+        qWarning("Farplay: échec du chargement du shader de post-traitement couleur");
     if (!cfl_hook_)
         qWarning("Farplay: échec du chargement du shader de chroma");
     if (!deartifact_)
@@ -153,6 +185,10 @@ void Image::destroyGpu()
         pl_mpv_user_shader_destroy(&deartifact_);
     if (cfl_hook_)
         pl_mpv_user_shader_destroy(&cfl_hook_);
+    if (nis_)
+        pl_mpv_user_shader_destroy(&nis_);
+    if (post_color_)
+        pl_mpv_user_shader_destroy(&post_color_);
     gpu_ = nullptr;
 }
 
@@ -173,30 +209,31 @@ const struct pl_hook *Image::selectHook(bool source_pq, float upscale_factor,
     if (upscale_factor <= 1.0f) {
         hook = nullptr;
         used = Stats::Upscaler::None;
-    } else if (mode == 0) {
-        hook = chiaki_hook;
-        used = hook ? Stats::Upscaler::Chiaki : Stats::Upscaler::Builtin;
-    } else if (mode == 1) {
+    } else if (mode == 2) {
+        hook = nis_;
+        used = Stats::Upscaler::Nis;
+    } else {
         hook = source_pq ? fsr_pq_ : fsr_sdr_;
         used = Stats::Upscaler::Fsr1;
-    } else if (mode == 2) {
-        // FSRCNNX est un x2 : au-delà, libplacebo termine le redimensionnement.
-        hook = fsrcnnx8;
-        used = Stats::Upscaler::Fsrcnnx;
     }
-    if (!hook && (mode == 1 || mode == 2) && upscale_factor > 1.0f)
+    if (!hook && upscale_factor > 1.0f)
         used = Stats::Upscaler::Fallback; // shader indisponible → repli libplacebo, signalé
+    Q_UNUSED(chiaki_hook);
+    Q_UNUSED(fsrcnnx8);
 
-    // Netteté : 100 % = 0 stop (maximum), 0 % = 2 stops.
+    // Netteté FSR 1 : 100 % = 0 stop (maximum), 0 % = 2 stops.
     const float stops = 2.0f * (1.0f - sharpness() / 100.0f);
     setSharpnessParam(fsr_sdr_, stops);
     setSharpnessParam(fsr_pq_, stops);
+    // Netteté NIS (0..1, 0,25 par défaut chez NVIDIA) : 50 % → 0,25, 100 % → 0,5.
+    // Constante de spécialisation : un changement recompile le shader une fois.
+    setFloatParam(nis_, "Sharpness", sharpness() / 200.0f);
 
     stats.setUpscaler(used, upscale_factor);
     return hook;
 }
 
-int Image::buildHooks(const struct pl_hook *upscale_hook, const struct pl_hook **out)
+int Image::buildHooks(const struct pl_hook *upscale_hook, const struct pl_hook **out, bool source_pq)
 {
     // Force (écart de patch toléré en valeur de code) et part de l'image filtrée.
     // Réglés sur un test synthétique bruit + blocs 8x8 : +2 / +4 / +5 dB.
@@ -215,6 +252,14 @@ int Image::buildHooks(const struct pl_hook *upscale_hook, const struct pl_hook *
     }
     if (upscale_hook)
         out[n++] = upscale_hook;
+    if (post_color_ && (contrast() != 0 || saturation() != 0 || vibrance() != 0)) {
+        setFloatParam(post_color_, "farplay_contrast", contrast() / 100.0f);
+        setFloatParam(post_color_, "farplay_saturation", saturation() / 100.0f);
+        setFloatParam(post_color_, "farplay_vibrance", vibrance() / 100.0f);
+        // Gris moyen : ~18 % en sRGB (0,45), ~100 nits en PQ (0,51)
+        setFloatParam(post_color_, "farplay_pivot", source_pq ? 0.51f : 0.45f);
+        out[n++] = post_color_;
+    }
     Stats::instance().setDenoiseActive((level > 0 && deartifact_) || (chromaFromLuma() && cfl_hook_));
     return n;
 }

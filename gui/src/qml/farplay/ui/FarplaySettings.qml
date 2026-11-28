@@ -377,11 +377,11 @@ FocusScope {
                         costs: ({ image: "+", gpu: "+" })
                         FpSettingRow {
                             title: "Méthode"
-                            description: "FSR 1 est léger. FSRCNNX et libplacebo sont plus fins mais plus lourds."
+                            description: "FSR 1 (AMD) est doux et régulier. NIS (NVIDIA) donne une image plus piquée."
                             FpSegmented {
-                                model: ["chiaki-ng", "FSR 1", "FSRCNNX", "libplacebo"]
-                                currentIndex: FarplayImage.upscaler
-                                onActivated: (i) => FarplayImage.upscaler = i
+                                model: ["FSR 1", "NIS"]
+                                currentIndex: FarplayImage.upscaler - 1
+                                onActivated: (i) => FarplayImage.upscaler = i + 1
                             }
                         }
                         FpSettingRow {
@@ -576,6 +576,53 @@ FocusScope {
                                 from: 80; to: 400; stepSize: 10; unit: "nits"
                                 value: FarplayImage.sdrWhiteNits
                                 onMoved: (v) => FarplayImage.sdrWhiteNits = v
+                            }
+                        }
+                    }
+                    FpSectionCard {
+                        iconName: "color"
+                        title: "Post-traitement"
+                        subtitle: "Ajuste les couleurs des images reçues, avant la frame gen."
+                        costs: ({ image: "+" })
+                        FpSettingRow {
+                            title: "Contraste"
+                            description: "Écarte ou rapproche les tons clairs et sombres autour du gris moyen."
+                            FpSlider {
+                                width: 320
+                                from: -50; to: 50; stepSize: 5; unit: "%"
+                                value: FarplayImage.contrast
+                                onMoved: (v) => FarplayImage.contrast = v
+                            }
+                        }
+                        FpSettingRow {
+                            divider: true
+                            title: "Saturation"
+                            description: "Intensité de toutes les couleurs."
+                            FpSlider {
+                                width: 320
+                                from: -50; to: 50; stepSize: 5; unit: "%"
+                                value: FarplayImage.saturation
+                                onMoved: (v) => FarplayImage.saturation = v
+                            }
+                        }
+                        FpSettingRow {
+                            divider: true
+                            title: "Vibrance"
+                            description: "Ravive surtout les couleurs ternes, épargne la peau et les couleurs déjà vives."
+                            FpSlider {
+                                width: 320
+                                from: 0; to: 100; stepSize: 5; unit: "%"
+                                value: FarplayImage.vibrance
+                                onMoved: (v) => FarplayImage.vibrance = v
+                            }
+                        }
+                        FpSettingRow {
+                            divider: true
+                            title: "Revenir aux couleurs d'origine"
+                            FpButton {
+                                text: "Réinitialiser"
+                                enabled: FarplayImage.contrast !== 0 || FarplayImage.saturation !== 0 || FarplayImage.vibrance !== 0
+                                onClicked: FarplayImage.resetColor()
                             }
                         }
                     }
@@ -858,7 +905,7 @@ FocusScope {
                         expanded: false
                         FpSettingRow {
                             title: "Licence et crédits"
-                            description: "Farplay est distribué sous licence GNU AGPL-3.0, sans aucune garantie. Basé sur chiaki-ng et Chiaki (© leurs contributeurs), avec libplacebo, FFmpeg, Qt, AMD FidelityFX FSR 1 (MIT), polices Sora et JetBrains Mono (OFL). Code source : github.com/LuckyS7evin/farplay. Ce projet n'est ni approuvé ni certifié par Sony Interactive Entertainment."
+                            description: "Farplay est distribué sous licence GNU AGPL-3.0, sans aucune garantie. Basé sur chiaki-ng et Chiaki (© leurs contributeurs), avec libplacebo, FFmpeg, Qt, AMD FidelityFX FSR 1 (MIT), NVIDIA Image Scaling (MIT), polices Sora et JetBrains Mono (OFL). Code source : github.com/LuckyS7evin/farplay. Ce projet n'est ni approuvé ni certifié par Sony Interactive Entertainment."
                         }
                     }
                 }

@@ -33,11 +33,12 @@
 | Couleurs nettes (chroma guidée par la luminance) | Farplay | 🧪 |
 | Archive de build simple, README avec captures | Farplay | 🧪 |
 | Navigation complète à la manette vérifiée partout | cahier des charges | ⏳ |
-| Post-traitement (F7) : netteté, vibrance/saturation, contraste | cahier des charges, PushFPS | ⏳ |
+| Post-traitement (F7) : contraste, saturation, vibrance (shader avant la frame gen) | cahier des charges, PushFPS | 🧪 |
+| Post-traitement (F7) : LUT 3D .cube par jeu | cahier des charges | ⏳ |
 | Éditeur de masque HUD | cahier des charges | ⏳ |
-| Agrandisseur NIS (NVIDIA Image Scaling, MIT) au choix à côté de FSR 1 | PushFPS | ⏳ |
+| Agrandisseur NIS (NVIDIA Image Scaling, MIT) au choix à côté de FSR 1 ; choix chiaki-ng, FSRCNNX et libplacebo retirés | PushFPS | 🧪 |
 | Fenêtre sans barre de titre Windows : fermer / réduire / agrandir intégrés à l’interface, déplacement et redimensionnement conservés | Farplay | 🧪 |
-| Anticrénelage optionnel avant agrandissement (SMAA, licence MIT) | PushFPS | ⏳ |
+| Anticrénelage optionnel avant agrandissement (SMAA, licence MIT) — reporté : le jeu applique déjà son TAA, un SMAA sur un flux compressé surtout adoucit ; à reconsidérer si le crénelage reste visible avec NIS | PushFPS | 💤 |
 | Stabilisation des bords dans le flux fourni à FSR (type « Edge Aegis » : vecteurs du premier plan dilatés aux contours) — seulement si « Flux Farplay » apporte quelque chose à FSR | PushFPS (GPL-3.0) | 💤 |
 | Petit réseau de super-résolution entraîné sur le flux PS5 (runtime Vulkan, ex. DLSSNR-AMD à évaluer) | cahier des charges | ⏳ |
 | Outil de mesure de latence (appui simulé → écran) | smoovplay | ⏳ |

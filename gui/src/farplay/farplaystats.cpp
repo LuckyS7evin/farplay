@@ -548,13 +548,14 @@ void Stats::tick()
     s[QStringLiteral("requestedBitrate")] = n.requested_bitrate_mbps;
 
     // --- Phase 2 : upscaling ---
-    const bool has_up_shader = up == Upscaler::Fsr1 || up == Upscaler::Fsrcnnx || up == Upscaler::Chiaki;
+    const bool has_up_shader = up == Upscaler::Fsr1 || up == Upscaler::Nis || up == Upscaler::Fsrcnnx || up == Upscaler::Chiaki;
     QString up_name;
     switch (up) {
     case Upscaler::None: up_name = QStringLiteral("aucun (×1)"); break;
     case Upscaler::Builtin: up_name = QStringLiteral("libplacebo"); break;
     case Upscaler::Chiaki: up_name = QStringLiteral("réglage chiaki-ng"); break;
     case Upscaler::Fsr1: up_name = QStringLiteral("FSR 1"); break;
+    case Upscaler::Nis: up_name = QStringLiteral("NIS"); break;
     case Upscaler::Fsrcnnx: up_name = QStringLiteral("FSRCNNX"); break;
     case Upscaler::Fallback: up_name = QStringLiteral("libplacebo (shader indisponible)"); break;
     }

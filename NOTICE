@@ -19,3 +19,7 @@ AMD FidelityFX SDK 2.4 (frame generation FSR) — en-têtes sous licence MIT
 amd_fidelityfx_framegeneration_vk.dll redistribuées non modifiées, en binaire
 seulement, sous la licence AMD jointe (licenses/AMD-FidelityFX-SDK-LICENSE.md).
 Copyright (C) Advanced Micro Devices, Inc.
+
+NVIDIA Image Scaling v1.0.3 (gui/res/farplay/shaders/NIS.glsl) — licence MIT,
+Copyright (c) 2022 NVIDIA CORPORATION & AFFILIATES ; portage au format des
+shaders mpv par agyild. Le texte de la licence figure en tête du fichier.

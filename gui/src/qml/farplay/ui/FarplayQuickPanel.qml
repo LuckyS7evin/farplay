@@ -184,7 +184,7 @@ FpGlass {
                 description: "Vers l'écran"
                 FpSegmented {
                     id: upSeg
-                    model: ["FSR 1", "FSRCNNX", "libplacebo"]
+                    model: ["FSR 1", "NIS"]
                     minSegWidth: 50
                     currentIndex: FarplayImage.upscaler - 1
                     onActivated: (i) => FarplayImage.upscaler = i + 1
