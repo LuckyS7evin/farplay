@@ -176,6 +176,9 @@ int main(int argc, char **argv)
     }
     farplay::FgEngine eng;
     eng.setHostIo(true);
+    // Qualité du flux (0 rapide, 1 équilibrée, 2 qualité) : variable FG_QUALITY
+    if (const char *q = std::getenv("FG_QUALITY"))
+        eng.setQuality(std::atoi(q));
     if (!eng.init(vk->gpu, log)) {
         std::fprintf(stderr, "init moteur échouée\n");
         return 3;
@@ -197,7 +200,7 @@ int main(int argc, char **argv)
 
     for (int lv = -1; lv < farplay::FgEngine::kLevels; lv++) {
         pl_tex ft = eng.debugFlow(lv);
-        if (!ft || (lv >= 0 && lv < farplay::FgEngine::kFlowLevel))
+        if (!ft)
             continue;
         const int fw = ft->params.w, fh = ft->params.h;
         std::vector<float> fl(size_t(fw) * fh * 4);

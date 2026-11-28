@@ -488,6 +488,28 @@ FocusScope {
                         }
                         FpSettingRow {
                             divider: true
+                            visible: FarplayFrameGen.engine === 0 || FarplayFrameGen.fsrMotion === 1
+                            title: "Qualité du flux optique"
+                            description: "Rapide : moins de calcul GPU. Qualité : vecteurs plus fins et mouvements rapides mieux suivis, plus de calcul GPU."
+                            FpSegmented {
+                                enabled: FarplayFrameGen.mode === 1
+                                model: ["Rapide", "Équilibrée", "Qualité"]
+                                currentIndex: FarplayFrameGen.flowQuality
+                                onActivated: (i) => FarplayFrameGen.flowQuality = i
+                            }
+                        }
+                        FpSettingRow {
+                            divider: true
+                            title: "Écarter les images répétées"
+                            description: "Quand le jeu passe sous 30 i/s, la PS5 répète des images : on les ignore et on interpole vers la vraie suivante (plus fluide, latence un peu plus haute pendant la baisse)."
+                            FpSwitch {
+                                enabled: FarplayFrameGen.mode === 1
+                                checked: FarplayFrameGen.dedup
+                                onToggled: (c) => FarplayFrameGen.dedup = c
+                            }
+                        }
+                        FpSettingRow {
+                            divider: true
                             visible: FarplayFrameGen.engine === 1
                             title: "Diagnostic FSR"
                             description: "Images générées seules : affiche uniquement les images produites par FSR (sans alternance). Vue AMD : écran de diagnostic d'AMD. Non mémorisé."

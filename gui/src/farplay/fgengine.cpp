@@ -219,6 +219,15 @@ void FgEngine::destroy()
     num_pass_times_ = 0;
 }
 
+void FgEngine::setQuality(int q)
+{
+    q = std::clamp(q, 0, 2);
+    if (q == quality_)
+        return;
+    quality_ = q;
+    fwd_.valid = bwd_.valid = false;
+}
+
 void FgEngine::destroyFlow(FlowSet &fs)
 {
     for (pl_tex &t : fs.lvl)
@@ -385,8 +394,10 @@ bool FgEngine::computeFlow(Slot &a, Slot &b, FlowSet &fs, int final_level)
         if (!ensureTex(&fs.lvl[k], fmt_flow_, lw, lh))
             return false;
         const bool coarsest = k == kLevels - 1;
-        // L0 (grille fine pour FSR) : la prédiction du niveau 1 est déjà bonne, rayon 1.
-        const int radius = coarsest ? 4 : (k == 0 ? 1 : 2);
+        // Rayon de recherche (pixels du niveau) selon la qualité. Au niveau le plus
+        // fin la prédiction du niveau supérieur est déjà bonne : rayon réduit.
+        static constexpr int kCoarse[3] = { 3, 4, 6 }, kMid[3] = { 1, 2, 3 }, kFine[3] = { 1, 1, 2 };
+        const int radius = coarsest ? kCoarse[quality_] : (k == 0 ? kFine[quality_] : kMid[quality_]);
         char body[4096];
         const char *pred_coarse =
             "if (use_tprev > 0.5) { for (int k = 0; k < 5; k++) {"
@@ -444,7 +455,7 @@ pl_tex FgEngine::flowFor(uint64_t sig_a, uint64_t sig_b)
         return nullptr;
     if (!bwd_.valid || bwd_.a != sig_a || bwd_.b != sig_b) {
         // Blocs de B cherchés dans A : vecteur B→A en chaque pixel de B.
-        if (!computeFlow(*b, *a, bwd_, 0))
+        if (!computeFlow(*b, *a, bwd_, bwdLevel()))
             return nullptr;
         bwd_.a = sig_a;
         bwd_.b = sig_b;
@@ -462,7 +473,7 @@ pl_tex FgEngine::synthesize(uint64_t sig_a, uint64_t sig_b, float t, bool hud_pr
     if (a->rgb->params.w != b->rgb->params.w || a->rgb->params.h != b->rgb->params.h)
         return nullptr;
     if (!fwd_.valid || fwd_.a != sig_a || fwd_.b != sig_b) {
-        if (!computeFlow(*a, *b, fwd_, kFlowLevel))
+        if (!computeFlow(*a, *b, fwd_, fwdLevel()))
             return nullptr;
         fwd_.a = sig_a;
         fwd_.b = sig_b;

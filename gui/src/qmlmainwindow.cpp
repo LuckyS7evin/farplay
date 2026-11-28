@@ -3035,6 +3035,12 @@ void QmlMainWindow::presentFrame(ChiakiFfmpegFrame frame, int32_t frames_lost, q
 
     if (!frame.frame)
         return;
+    // FARPLAY: image répétée par la PS5 (jeu sous 30 fps) : écartée, la frame gen
+    // interpole directement vers la vraie image suivante.
+    if (farplay::FrameGen::instance().dropDuplicate(frame.packet_size)) {
+        av_frame_free(&frame.frame);
+        return;
+    }
 
     if (bypass_frame_queue) {
         {

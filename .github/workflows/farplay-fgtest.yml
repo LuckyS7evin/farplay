@@ -30,6 +30,8 @@ jobs:
           ./fg_test 4 2
           ./fg_test 24 10
           ./fg_test 120 30
+          FG_QUALITY=0 ./fg_test 24 10
+          FG_QUALITY=2 ./fg_test 24 10
       - name: Réduction d'artefacts
         working-directory: gui/src/farplay/tests
         run: |

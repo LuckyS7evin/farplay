@@ -56,6 +56,8 @@ FrameGen::FrameGen(QObject *parent)
     pacing_.store(st.value(QStringLiteral("framegen/pacing"), true).toBool());
     engine_sel_.store(std::clamp(st.value(QStringLiteral("framegen/engine"), 1).toInt(), 0, 1));
     fsr_motion_.store(std::clamp(st.value(QStringLiteral("framegen/fsr_motion"), 0).toInt(), 0, 1));
+    dedup_.store(st.value(QStringLiteral("framegen/dedup"), true).toBool());
+    flow_quality_.store(std::clamp(st.value(QStringLiteral("framegen/flow_quality"), 1).toInt(), 0, 2));
 }
 
 void FrameGen::registerQml(bool amd_gpu)
@@ -75,6 +77,8 @@ void FrameGen::save()
     st.setValue(QStringLiteral("framegen/pacing"), pacing());
     st.setValue(QStringLiteral("framegen/engine"), engine());
     st.setValue(QStringLiteral("framegen/fsr_motion"), fsrMotion());
+    st.setValue(QStringLiteral("framegen/dedup"), dedup());
+    st.setValue(QStringLiteral("framegen/flow_quality"), flowQuality());
     emit changed();
 }
 
@@ -122,6 +126,50 @@ void FrameGen::setFsrMotion(int v)
         fsr_motion_.store(v);
         save();
     }
+}
+
+void FrameGen::setDedup(bool v)
+{
+    if (v != dedup()) {
+        dedup_.store(v);
+        save();
+    }
+}
+
+void FrameGen::setFlowQuality(int v)
+{
+    v = std::clamp(v, 0, 2);
+    if (v != flowQuality()) {
+        flow_quality_.store(v);
+        save();
+    }
+}
+
+bool FrameGen::dropDuplicate(int64_t packet_size)
+{
+    if (packet_size <= 0)
+        return false;
+    // Médiane des tailles récentes (images « normales » du flux)
+    int64_t med = 0;
+    if (num_sizes_ >= 16) {
+        int64_t tmp[kSizes];
+        std::copy(sizes_, sizes_ + num_sizes_, tmp);
+        std::nth_element(tmp, tmp + num_sizes_ / 2, tmp + num_sizes_);
+        med = tmp[num_sizes_ / 2];
+    }
+    sizes_[size_head_] = packet_size;
+    size_head_ = (size_head_ + 1) % kSizes;
+    if (num_sizes_ < kSizes)
+        num_sizes_++;
+    // Une image répétée par l'encodeur ne contient presque rien (blocs « inchangés ») :
+    // quelques centaines d'octets contre des dizaines de Ko. Scène fixe (menu) :
+    // toutes les images sont minuscules, on n'en écarte qu'une sur deux au plus.
+    const bool tiny = med > 0 && packet_size < std::max<int64_t>(1500, med / 40);
+    const bool drop = tiny && !last_dropped_ && dedup() && internalActive();
+    last_dropped_ = drop;
+    if (tiny)
+        Stats::instance().noteDuplicate(drop);
+    return drop;
 }
 
 QString FrameGen::fsrStatus() const
@@ -468,6 +516,7 @@ bool FrameGen::render(pl_renderer renderer, const struct pl_frame_mix *mix,
     if (w < 16 || h < 16)
         return false;
 
+    engine_.setQuality(flowQuality());
     // Rendu (une fois) des images reçues A et B avec tout le pipeline
     // (upscaling FSR, lissage, HDR) dans les textures du moteur.
     const uint64_t sig[2] = { mix->signatures[ia], mix->signatures[ib] };

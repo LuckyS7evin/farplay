@@ -105,6 +105,10 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 	decoder->codec_context->framerate = decoder->synthetic_framerate;
 	decoder->codec_context->pkt_timebase = decoder->synthetic_time_base;
 	decoder->codec_context->time_base = decoder->synthetic_time_base;
+#ifdef AV_CODEC_FLAG_COPY_OPAQUE
+	// FARPLAY: la taille du paquet suit l'image décodée (détection des images répétées)
+	decoder->codec_context->flags |= AV_CODEC_FLAG_COPY_OPAQUE;
+#endif
 
 	if(avcodec_open2(decoder->codec_context, decoder->av_codec, NULL) < 0)
 	{
@@ -193,6 +197,7 @@ CHIAKI_EXPORT bool chiaki_ffmpeg_decoder_video_sample_cb(uint8_t *buf, size_t bu
 	packet->pts = decoder->synthetic_packet_pts;
 	packet->dts = decoder->synthetic_packet_pts;
 	packet->duration = synthetic_duration_pts;
+	packet->opaque = (void *)(uintptr_t)buf_size; // FARPLAY: taille compressée
 #if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(59, 8, 100)
 	packet->time_base = decoder->synthetic_time_base;
 #endif
@@ -289,8 +294,13 @@ CHIAKI_EXPORT ChiakiFfmpegFrame chiaki_ffmpeg_decoder_pull_frame(ChiakiFfmpegDec
 	ChiakiFfmpegFrame frame_plus_stats = {};
 	frame_plus_stats.frame = frame;
 	frame_plus_stats.recovered = recovered;
+	frame_plus_stats.packet_size = -1;
 	if(frame)
 	{
+#ifdef AV_CODEC_FLAG_COPY_OPAQUE
+		if(frame->opaque) // FARPLAY:
+			frame_plus_stats.packet_size = (int64_t)(uintptr_t)frame->opaque;
+#endif
 		chiaki_ffmpeg_frame_get_timing(
 			frame,
 			pkt_timebase,

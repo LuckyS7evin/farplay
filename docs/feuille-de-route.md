@@ -19,6 +19,8 @@
 | Candidat de mouvement global (panoramiques) | ConsoleEnhancer | ⏳ |
 | « Flux Farplay » pour FSR : vecteurs B→A sur grille fine (1/4 de la sortie) au lieu du flux A→B inversé (artefacts sur les cheveux) | Farplay, Lossless Scaling | 🧪 |
 | Retrait de la sonde de luminosité FSR (lecture GPU synchrone) | Farplay | ✅ |
+| Images répétées écartées (taille compressée), le correcteur d'horloge ajoute l'avance nécessaire pendant la baisse | smoovplay, PushFPS | 🧪 |
+| Qualité du flux optique réglable (rapide / équilibrée / qualité) | PushFPS, Lossless Scaling | 🧪 |
 | Mode faible latence par extrapolation (option) | ConsoleEnhancer | ⏳ |
 | Frame gen « éco » (simple fondu) | Asobi | 💤 |
 | Piste B : RIFE via ncnn | cahier des charges | 💤 |
@@ -52,7 +54,7 @@
 |---|---|---|
 | Retard audio corrigé en douceur (±0,5–1 %) | smoovplay | 💤 |
 | Cadence cible adaptative | Lossless Scaling | 💤 (le mode « Écran » s'en approche) |
-| Détection des images répétées par taille compressée | smoovplay | 💤 (flux 60 Hz portant du 30 fps) |
+
 | Essai 1440p/4K demandé à la PS5 | Farplay | 💤 (refus probable) |
 
 ## V2 — amendement du cahier des charges (upscalers temporels autorisés)

@@ -379,6 +379,8 @@ void Stats::setSessionActive(bool active)
         prev_tick_us = 0;
         session_start_us = (int64_t)chiaki_time_now_monotonic_us();
         scene_cuts.store(0, std::memory_order_relaxed);
+        dup_seen.store(0, std::memory_order_relaxed);
+        dup_dropped.store(0, std::memory_order_relaxed);
         timer.start();
     } else {
         // Aucune activité au repos (exigence : < 1 % CPU hors session).
@@ -641,6 +643,8 @@ void Stats::tick()
     s[QStringLiteral("fgSynthMs")] = fsynth;
     s[QStringLiteral("fgPyrMs")] = fpyr;
     s[QStringLiteral("sceneCuts")] = static_cast<int>(scene_cuts.load(std::memory_order_relaxed));
+    s[QStringLiteral("dupSeen")] = static_cast<int>(dup_seen.load(std::memory_order_relaxed));
+    s[QStringLiteral("dupDropped")] = static_cast<int>(dup_dropped.load(std::memory_order_relaxed));
     s[QStringLiteral("fgCostMs")] = fg_cost;
     s[QStringLiteral("fgOverBudget")] = fg_cost > kBudgetFrameGenMs;
     s[QStringLiteral("fgDelayMs")] = fdelay;
@@ -679,7 +683,7 @@ void Stats::writeCsv(const QVariantMap &s)
                "upscaler,upscale_factor,gpu_upscale_avg_ms,gpu_upscale_p99_ms,out_resolution,output,src_peak_nits,"
                "requested_bitrate_mbps,target_bitrate_mbps,"
                "fg_state,fps_gen,fg_pyr_ms,fg_flow_ms,fg_synth_ms,fg_cost_ms,fg_delay_ms,"
-               "fps_out_1pct_low,pacing_margin_ms,audio_delay_ms,fps_distinct,gpu_denoise_avg_ms,fg_wait_pct,fg_calls_per_s,fg_wait_detail,fg_queue_detail,fsr_status,scene_cuts\n";
+               "fps_out_1pct_low,pacing_margin_ms,audio_delay_ms,fps_distinct,gpu_denoise_avg_ms,fg_wait_pct,fg_calls_per_s,fg_wait_detail,fg_queue_detail,fsr_status,scene_cuts,dup_seen,dup_dropped\n";
         emit csvLoggingChanged();
     }
     const double t = ((int64_t)chiaki_time_now_monotonic_us() - session_start_us) / 1e6;
@@ -698,7 +702,7 @@ void Stats::writeCsv(const QVariantMap &s)
         << f("requestedBitrate") << ',' << f("targetBitrate") << ','
         << str("fgState") << ',' << f("fpsGen") << ',' << f("fgPyrMs") << ',' << f("fgFlowMs") << ','
         << f("fgSynthMs") << ',' << f("fgCostMs") << ',' << f("fgDelayMs") << ','
-        << f("fpsOut1Low") << ',' << f("pacingMarginMs") << ',' << f("audioDelayMs") << ',' << f("fpsDistinct") << ',' << f("gpuDenoiseAvg") << ',' << f("fgWaitPct") << ',' << f("fgCallsPerSec") << ",\"" << str("fgWaitDetail") << "\",\"" << str("fgQueueDetail") << "\",\"" << str("fsrStatus") << "\"," << str("sceneCuts") << '\n';
+        << f("fpsOut1Low") << ',' << f("pacingMarginMs") << ',' << f("audioDelayMs") << ',' << f("fpsDistinct") << ',' << f("gpuDenoiseAvg") << ',' << f("fgWaitPct") << ',' << f("fgCallsPerSec") << ",\"" << str("fgWaitDetail") << "\",\"" << str("fgQueueDetail") << "\",\"" << str("fsrStatus") << "\"," << str("sceneCuts") << ',' << str("dupSeen") << ',' << str("dupDropped") << '\n';
     out.flush();
 }
 

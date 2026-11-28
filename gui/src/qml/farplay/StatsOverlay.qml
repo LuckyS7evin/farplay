@@ -139,7 +139,7 @@ Rectangle {
 
             Key { text: "Moteur FG" }
             Val {
-                text: (FarplayFrameGen.engine === 1 ? "AMD " + (overlay.s.fsrStatus || FarplayFrameGen.fsrStatus || "FSR") + (FarplayFrameGen.fsrMotion === 1 ? " · guidé par le flux Farplay" : "") : "Farplay (flux optique maison)") + (overlay.s.sceneCuts > 0 ? " · " + overlay.s.sceneCuts + " changements de plan" : "")
+                text: (FarplayFrameGen.engine === 1 ? "AMD " + (overlay.s.fsrStatus || FarplayFrameGen.fsrStatus || "FSR") + (FarplayFrameGen.fsrMotion === 1 ? " · guidé par le flux Farplay" : "") : "Farplay (flux optique maison)") + (overlay.s.sceneCuts > 0 ? " · " + overlay.s.sceneCuts + " changements de plan" : "") + (overlay.s.dupSeen > 0 ? " · doublons " + overlay.s.dupDropped + "/" + overlay.s.dupSeen + " écartés" : "")
                 color: (overlay.s.fsrStatus || "").indexOf("erreur") >= 0 || (overlay.s.fsrStatus || "").indexOf("indisponible") >= 0 ? overlay.cAlert : overlay.cIvory
             }
 

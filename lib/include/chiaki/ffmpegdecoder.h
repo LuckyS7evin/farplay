@@ -26,6 +26,7 @@ struct chiaki_ffmpeg_frame_t
 	double pts;
 	double duration;
 	bool recovered;
+	int64_t packet_size; // FARPLAY: taille compressée de l'image (octets), -1 si inconnue
 };
 
 struct chiaki_ffmpeg_decoder_t

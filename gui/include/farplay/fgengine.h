@@ -59,6 +59,12 @@ public:
     // Copie (avec conversion de format) d'une texture dans une autre, même taille.
     bool copyInto(pl_tex src, pl_tex dst);
 
+    // Qualité du flux : 0 = rapide, 1 = équilibrée (défaut), 2 = qualité.
+    // Rapide : grille plus grossière et recherche réduite ; qualité : grille fine
+    // aussi pour la synthèse et recherche élargie (mouvements rapides).
+    void setQuality(int q);
+    int quality() const { return quality_; }
+
     Timings timings();
     pl_fmt rgbaFormat() const { return fmt_rgba_; }
     pl_gpu gpu() const { return gpu_; }
@@ -108,7 +114,10 @@ private:
     Slot slots_[kSlots];
     uint64_t lru_clock_ = 0;
 
-    FlowSet fwd_; // A→B, niveau kFlowLevel : synthèse du moteur Farplay
+    int quality_ = 1;
+    int fwdLevel() const { return quality_ == 0 ? 2 : (quality_ == 2 ? 0 : kFlowLevel); }
+    int bwdLevel() const { return quality_ == 0 ? 1 : 0; }
+    FlowSet fwd_; // A→B, niveau kFlowLevel (selon la qualité) : synthèse du moteur Farplay
     FlowSet bwd_; // B→A, niveau 0 : vecteurs fournis à FSR
 
     pl_tex out_ = nullptr;

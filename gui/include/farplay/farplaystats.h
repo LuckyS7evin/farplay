@@ -102,6 +102,8 @@ public:
     void noteQueueDiag(int depth, double lead_ms, bool kept, bool clamped);
     // Changement de plan détecté : la paire n'est pas interpolée (compteur de session).
     void noteSceneCut() { scene_cuts.fetch_add(1, std::memory_order_relaxed); }
+    // Image quasi vide reçue (répétition probable) ; `dropped` : écartée par la frame gen.
+    void noteDuplicate(bool dropped) { dup_seen.fetch_add(1, std::memory_order_relaxed); if (dropped) dup_dropped.fetch_add(1, std::memory_order_relaxed); }
     // new_image = image différente de la précédente (à 120 Hz en x2, chaque image est présentée deux fois)
     void onFrameGenOutput(bool generated, bool new_image, double pyramid_ms, double flow_ms, double synth_ms);
     void setFrameGenDelay(double ms);
@@ -160,6 +162,7 @@ private:
     uint64_t fg_distinct = 0;
     uint32_t fg_wait_reason[3] = {}; uint32_t fg_mix_frames_sum = 0;
     std::atomic<uint32_t> scene_cuts{0};
+    std::atomic<uint32_t> dup_seen{0}, dup_dropped{0};
     uint32_t present_kind[10] = {}; uint32_t qdiag_n = 0, qdiag_kept = 0, qdiag_clamped = 0; double qdiag_depth = 0, qdiag_lead = 0, qdiag_lead_min = 1e9;
     uint32_t fg_vsync_wait = 0, fg_vsync_total = 0; // vsyncs sans image suivante / total (par tick)
     uint64_t prev_fg_distinct = 0;

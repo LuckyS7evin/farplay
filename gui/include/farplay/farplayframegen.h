@@ -49,6 +49,11 @@ class FrameGen : public QObject
     // Diagnostic FSR : 0 = normal, 1 = images générées seulement (pas d'alternance),
     // 2 = vue de diagnostic AMD (non mémorisé)
     Q_PROPERTY(int fsrDebug READ fsrDebug WRITE setFsrDebug NOTIFY changed)
+    // Images répétées par la PS5 (jeu sous 30 fps) écartées : on interpole vers
+    // la vraie image suivante au lieu de figer puis sauter.
+    Q_PROPERTY(bool dedup READ dedup WRITE setDedup NOTIFY changed)
+    // Qualité du flux optique Farplay : 0 = rapide, 1 = équilibrée (défaut), 2 = qualité
+    Q_PROPERTY(int flowQuality READ flowQuality WRITE setFlowQuality NOTIFY changed)
 
 public:
     static FrameGen &instance();
@@ -72,6 +77,14 @@ public:
     QString fsrStatus() const;
     int fsrDebug() const { return fsr_debug_.load(std::memory_order_relaxed); }
     void setFsrDebug(int v) { v = std::clamp(v, 0, 2); if (v != fsrDebug()) { fsr_debug_.store(v); emit changed(); } }
+    bool dedup() const { return dedup_.load(std::memory_order_relaxed); }
+    void setDedup(bool v);
+    int flowQuality() const { return flow_quality_.load(std::memory_order_relaxed); }
+    void setFlowQuality(int v);
+
+    // Thread de réception : faut-il écarter cette image (répétition probable de la
+    // précédente, d'après sa taille compressée) ? Jamais deux de suite.
+    bool dropDuplicate(int64_t packet_size);
 
     // Présentation cadencée par l'horloge des images (frame gen ou lissage).
     bool timedPresentation() const { return internalActive() || pacing(); }
@@ -125,6 +138,13 @@ private:
     std::atomic<bool> pacing_{true};
     std::atomic<int> engine_sel_{1};
     std::atomic<int> fsr_motion_{0};
+    std::atomic<bool> dedup_{true};
+    std::atomic<int> flow_quality_{1};
+    // Tailles compressées récentes (médiane glissante) et dernière décision
+    static constexpr int kSizes = 64;
+    int64_t sizes_[kSizes] = {};
+    int num_sizes_ = 0, size_head_ = 0;
+    bool last_dropped_ = false;
     std::atomic<int> fsr_debug_{0};
     // Sonde de luminosité (image générée vs réelle), ~1 fois par seconde
     // Détection des changements de plan : la luminance réduite (32×18) de chaque
