@@ -6901,6 +6901,12 @@ void QmlMainWindow::render()
     // (une seule image), ce qui bloquait la synthèse hors menu.
     if (mixer_active && farplay::FrameGen::instance().internalActive())
         qparams.interpolation_threshold = 0.0f;
+    // FARPLAY: horloge Farplay → pas de « compensation de dérive » de libplacebo. Elle
+    // recale la cible sur une image proche (< 1 ms) et GARDE ce décalage : les recalages
+    // s'additionnent au fil de la session, la cible interne de libplacebo dérive devant
+    // la nôtre et l'image suivante manque pour de bon (frame gen bloquée à 30 jusqu'au
+    // redémarrage, alors que l'avance mesurée paraît normale).
+    qparams.drift_compensation = farplay::FrameGen::instance().timedPresentation() ? 0.0f : 1e-3f;
     qparams.vsync_duration = vsync_duration;
     qparams.pts = playback_started
         ? (double)(ts_pre_update - ts_start) / 1000000.0 + vsync_duration - kPtsStaleMarginS
