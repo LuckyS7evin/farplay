@@ -244,7 +244,7 @@ ColumnLayout {
             visible: Chiaki.settings.streamMenuEnabled
             divider: true
             title: "Combinaison"
-            description: "Par défaut L1 + R1 + L3 + R3."
+            description: "Par défaut L3 + R3 (cliquer les deux sticks). Au clavier : Ctrl + O."
             Combo { base: "streamMenuShortcut" }
         }
     }

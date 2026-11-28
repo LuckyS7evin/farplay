@@ -279,11 +279,11 @@ void FrameGen::noteLead(double lead_s)
 {
     // Boucle de correction sur l'avance de la dernière image poussée sur l'instant
     // visé, mesurée AVANT le garde-fou. On pilote le 10e centile sur ~0,5 s autour
-    // de +3 ms : juste avant chaque arrivée l'avance doit rester positive, sinon B
+    // de +1,5 ms : juste avant chaque arrivée l'avance doit rester positive, sinon B
     // manque. Le centile (et non le minimum) ignore les à-coups isolés du réseau ou
     // du jeu : mieux vaut une image non générée de temps en temps qu'un retard
     // permanent. Correction bornée à ±50 ms : au-delà, la latence devient injouable.
-    constexpr double kWanted = 0.003, kUp = 0.5, kDown = 0.35, kMax = 0.05;
+    constexpr double kWanted = 0.0015, kUp = 0.5, kDown = 0.35, kMax = 0.05;
     constexpr int kWindow = int(sizeof(lead_win_) / sizeof(lead_win_[0]));
     if (!base_valid_.load(std::memory_order_relaxed))
         return;

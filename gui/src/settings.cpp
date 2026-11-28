@@ -272,6 +272,23 @@ Settings::Settings(const QString &conf, QObject *parent) : QObject(parent),
 	MigrateSettings(&settings);
 	MigrateVideoProfile(&settings);
 	MigrateControllerMappings(&settings);
+	// FARPLAY: raccourci du menu en jeu simplifié : L3 + R3 (au lieu de L1 + R1 + L3 + R3),
+	// le bouton PS étant souvent pris par Steam. Migration unique, seulement si l'ancien
+	// raccourci par défaut est en place.
+	if(!settings.value("farplay/menu_combo_l3r3", false).toBool())
+	{
+		if(settings.value("settings/stream_menu_shortcut1", 9).toUInt() == 9
+			&& settings.value("settings/stream_menu_shortcut2", 10).toUInt() == 10
+			&& settings.value("settings/stream_menu_shortcut3", 11).toUInt() == 11
+			&& settings.value("settings/stream_menu_shortcut4", 12).toUInt() == 12)
+		{
+			settings.setValue("settings/stream_menu_shortcut1", 11);
+			settings.setValue("settings/stream_menu_shortcut2", 12);
+			settings.setValue("settings/stream_menu_shortcut3", 0);
+			settings.setValue("settings/stream_menu_shortcut4", 0);
+		}
+		settings.setValue("farplay/menu_combo_l3r3", true);
+	}
 	manual_hosts_id_next = 0;
 	settings.setValue("version", SETTINGS_VERSION);
 	LoadRegisteredHosts();
