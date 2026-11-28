@@ -194,7 +194,6 @@ void FrameGen::noteSourceArrival(int64_t now_us, double pts_s, bool lost)
         arrival_head_ = 0;
         base_valid_.store(false, std::memory_order_relaxed);
         lead_corr_.store(0.0, std::memory_order_relaxed);
-        lead_min_ = 1e9;
         lead_n_ = 0;
     }
     last_offset_ = offset;
@@ -279,20 +278,22 @@ bool FrameGen::displayPts(int64_t now_us, double queue_origin_s, double vsync_s,
 void FrameGen::noteLead(double lead_s)
 {
     // Boucle de correction sur l'avance de la dernière image poussée sur l'instant
-    // visé, mesurée AVANT le garde-fou (sinon une horloge partie loin devant se lit
-    // « 1 ms » et n'est jamais rattrapée). On pilote le MINIMUM sur ~0,5 s : juste
-    // avant chaque arrivée l'avance doit rester positive (≈ 4 ms), sinon B manque
-    // et l'image n'est pas générée. Viser une moyenne laissait 25 % d'attentes.
-    // Asymétrique : on recule vite la cible quand B manque, on regagne la latence
-    // lentement quand l'avance est confortable.
-    constexpr double kWantedMin = 0.004, kUp = 0.7, kDown = 0.15, kMax = 1.0;
-    constexpr int kWindow = 60; // appels (≈ 0,5 s à 120 Hz)
-    lead_min_ = std::min(lead_min_, lead_s);
+    // visé, mesurée AVANT le garde-fou. On pilote le 10e centile sur ~0,5 s autour
+    // de +3 ms : juste avant chaque arrivée l'avance doit rester positive, sinon B
+    // manque. Le centile (et non le minimum) ignore les à-coups isolés du réseau ou
+    // du jeu : mieux vaut une image non générée de temps en temps qu'un retard
+    // permanent. Correction bornée à ±50 ms : au-delà, la latence devient injouable.
+    constexpr double kWanted = 0.003, kUp = 0.5, kDown = 0.35, kMax = 0.05;
+    constexpr int kWindow = int(sizeof(lead_win_) / sizeof(lead_win_[0]));
+    if (!base_valid_.load(std::memory_order_relaxed))
+        return;
+    lead_win_[lead_n_] = std::clamp(lead_s, -0.2, 0.2);
     if (++lead_n_ < kWindow)
         return;
-    const double err = kWantedMin - lead_min_;
-    lead_min_ = 1e9;
     lead_n_ = 0;
+    const int k = kWindow / 10;
+    std::nth_element(lead_win_, lead_win_ + k, lead_win_ + kWindow);
+    const double err = kWanted - lead_win_[k];
     double c = lead_corr_.load(std::memory_order_relaxed);
     c = std::clamp(c + (err > 0.0 ? kUp : kDown) * err, -kMax, kMax);
     lead_corr_.store(c, std::memory_order_relaxed);
