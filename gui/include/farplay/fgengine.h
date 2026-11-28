@@ -121,6 +121,7 @@ private:
     FlowSet bwd_; // B→A, niveau 0 : vecteurs fournis à FSR
 
     pl_tex out_ = nullptr;
+    pl_tex dummy_ = nullptr; // 1×1, lié à « tprev » quand il n'y a pas de flux précédent
     bool host_io_ = false;
 
     // Temps GPU de la dernière exécution de chaque passe (rapportés par

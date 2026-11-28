@@ -35,7 +35,7 @@
 
 //!PARAM farplay_sharpness
 //!DESC Farplay : netteté RCAS en stops (0 = maximum, 2 = faible)
-//!TYPE float
+//!TYPE DYNAMIC float
 //!MINIMUM 0.0
 //!MAXIMUM 2.0
 1.4

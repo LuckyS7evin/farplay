@@ -210,6 +210,7 @@ void FgEngine::destroy()
         destroyFlow(fwd_);
         destroyFlow(bwd_);
         pl_tex_destroy(gpu_, &out_);
+        pl_tex_destroy(gpu_, &dummy_);
     }
     if (dp_)
         pl_dispatch_destroy(&dp_);
@@ -415,8 +416,12 @@ bool FgEngine::computeFlow(Slot &a, Slot &b, FlowSet &fs, int final_level)
         const float lambda = 0.004f;
         // Flux temporel : résultat de la paire précédente (ou un flux nul au départ).
         const float use_tprev = fs.has_tprev ? 1.0f : 0.0f;
+        // Sans flux précédent, « tprev » n'est pas lu mais doit être lié : une petite
+        // texture à part (lier deux fois la même texture invalide la passe).
+        if (!fs.has_tprev && !ensureTex(&dummy_, fmt_flow_, 1, 1))
+            return false;
         pl_shader_desc descs[4] = { texDesc("la", a.lum[k]), texDesc("lb", b.lum[k]),
-                                    texDesc("tprev", fs.has_tprev ? fs.smooth : a.lum[k]) };
+                                    texDesc("tprev", fs.has_tprev ? fs.smooth : dummy_) };
         int nd = 3;
         if (!coarsest)
             descs[nd++] = texDesc("prev", fs.lvl[k + 1]);

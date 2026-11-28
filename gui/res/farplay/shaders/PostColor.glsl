@@ -7,28 +7,28 @@
 
 //!PARAM farplay_contrast
 //!DESC Contraste (-0.5 .. 0.5)
-//!TYPE float
+//!TYPE DYNAMIC float
 //!MINIMUM -0.5
 //!MAXIMUM 0.5
 0.0
 
 //!PARAM farplay_saturation
 //!DESC Saturation (-0.5 .. 0.5)
-//!TYPE float
+//!TYPE DYNAMIC float
 //!MINIMUM -0.5
 //!MAXIMUM 0.5
 0.0
 
 //!PARAM farplay_vibrance
 //!DESC Vibrance (0 .. 1)
-//!TYPE float
+//!TYPE DYNAMIC float
 //!MINIMUM 0.0
 //!MAXIMUM 1.0
 0.0
 
 //!PARAM farplay_pivot
 //!DESC Gris moyen du contraste (valeur encodée)
-//!TYPE float
+//!TYPE DYNAMIC float
 //!MINIMUM 0.0
 //!MAXIMUM 1.0
 0.45

@@ -11,7 +11,7 @@
 
 //!PARAM farplay_cfl_strength
 //!DESC Farplay : poids maximal de la prédiction (0 = bilinéaire seul)
-//!TYPE float
+//!TYPE DYNAMIC float
 //!MINIMUM 0.0
 //!MAXIMUM 1.0
 0.9

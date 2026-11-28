@@ -6917,7 +6917,7 @@ void QmlMainWindow::render()
         double farplay_pts = 0.0;
         if (farplay::FrameGen::instance().displayPts(static_cast<int64_t>(ts_pre_update), queue_pts_origin,
                                                      vsync_duration, farplay_fg_delay_s, &farplay_pts))
-            qparams.pts = farplay_pts;
+            qparams.pts = qMax(0.0, farplay_pts); // avant la 1re image : pas de cible négative (erreur pl_queue)
     }
     const int depth_limit = effectiveQueueDepthLimit();
     enum pl_queue_status queue_status;
@@ -7072,7 +7072,7 @@ void QmlMainWindow::render()
                     double farplay_pts = 0.0;
                     if (farplay::FrameGen::instance().displayPts(static_cast<int64_t>(ts_refresh), queue_pts_origin,
                                                                  vsync_duration, farplay_fg_delay_s, &farplay_pts))
-                        qparams.pts = farplay_pts;
+                        qparams.pts = qMax(0.0, farplay_pts);
                 }
                 queue_status = pl_queue_update(placebo_queue, &frame_mix, &qparams);
                 queue_depth_cached.storeRelease(pl_queue_num_frames(placebo_queue));

@@ -49,9 +49,12 @@
 //   The slider-dependent constants are now computed as local consts inside
 //   hook() and passed to AddDirFilters()/EvalPoly6().
 
+// FARPLAY: « Sharpness » passé en paramètre dynamique (uniforme) : en constante de
+// spécialisation, chaque changement recompilait le shader (~100 ms d'arrêt).
+
 //!PARAM Sharpness
 //!DESC Amount of sharpening
-//!TYPE CONSTANT float
+//!TYPE DYNAMIC float
 //!MINIMUM 0.0
 //!MAXIMUM 1.0
 0.25
@@ -445,7 +448,9 @@ void hook()
 			const float ty = (srcBlockStartY + py + kShift) * kSrcNormY;
 
 			float p[2][2];
-#ifdef HOOKED_gather
+// FARPLAY: lecture groupée (textureGather) désactivée : sur le plan de luminance
+// du décodeur matériel (Vulkan Video), elle bloquait le GPU sur RX 9070 XT.
+#if 0
 			{
 				const vec4 sY = HOOKED_gather(vec2(tx, ty), 0);
 

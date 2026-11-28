@@ -9,14 +9,14 @@
 
 //!PARAM farplay_denoise_h
 //!DESC Farplay : force du filtre (écart de patch toléré, en valeur de code)
-//!TYPE float
+//!TYPE DYNAMIC float
 //!MINIMUM 0.0
 //!MAXIMUM 0.2
 0.02
 
 //!PARAM farplay_denoise_mix
 //!DESC Farplay : part de l'image filtrée (1 = filtrée seule)
-//!TYPE float
+//!TYPE DYNAMIC float
 //!MINIMUM 0.0
 //!MAXIMUM 1.0
 0.85
